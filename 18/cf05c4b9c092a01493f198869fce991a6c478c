@@ -1,0 +1,18 @@
+skills/productivity/README.md
+  h_d8c66562a39f32 1
+skills/personal/README.md
+  h_d8c66562a39f32 1
+skills/tcwith/README.md
+  h_d8c66562a39f32 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "18cf05c4b9c092a01493f198869fce991a6c478c",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  }
+}
