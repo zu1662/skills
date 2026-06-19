@@ -23,13 +23,14 @@ REPO_ROOT="$(cd "$COMMON_DIR/../.." && pwd)"
 SKILLS_DIR="$REPO_ROOT/skills"
 
 # ============ 工具注册表 ============
-# 格式: tool_id|display_name|cli_cmd|target_dir
-# target_dir 是软链的父目录(~ 开头表示用户主目录)
+# 格式: tool_id|display_name|cli_cmd|skills_dir|commands_dir
+# skills_dir   — skill 软链父目录(~ 开头表示用户主目录)
+# commands_dir — command 软链父目录(空字符串表示该工具不支持 commands 派生)
 TOOLS_REGISTRY=(
-  "claude|Claude Code|claude|$HOME/.claude/skills"
-  "opencode|OpenCode|opencode|$HOME/.config/opencode/skills"
-  "codex|Codex|codex|$HOME/.codex/skills"
-  "agents|.agents (OpenCode+Gemini CLI 共享)|-|$HOME/.agents/skills"
+  "claude|Claude Code|claude|$HOME/.claude/skills|$HOME/.claude/commands"
+  "opencode|OpenCode|opencode|$HOME/.config/opencode/skills|$HOME/.config/opencode/commands"
+  "codex|Codex|codex|$HOME/.codex/skills|"
+  "agents|.agents (OpenCode+Gemini CLI 共享)|-|$HOME/.agents/skills|"
 )
 
 # ============ 工具检测 ============
@@ -38,24 +39,29 @@ TOOLS_REGISTRY=(
 # 退出码:0=已安装, 1=未安装
 detect_tool() {
   local tool_id="$1"
-  local entry cli_cmd target_dir
+  local entry cli_cmd skills_dir commands_dir
   entry=$(printf '%s\n' "${TOOLS_REGISTRY[@]}" | grep "^${tool_id}|" || true)
   if [[ -z "$entry" ]]; then
     return 1
   fi
-  IFS='|' read -r _ _ cli_cmd target_dir <<< "$entry"
+  IFS='|' read -r _ _ cli_cmd skills_dir commands_dir <<< "$entry"
 
   # 探测 1: CLI 命令存在
   if [[ "$cli_cmd" != "-" ]] && command -v "$cli_cmd" >/dev/null 2>&1; then
     return 0
   fi
 
-  # 探测 2: 目标目录存在
-  if [[ -d "$target_dir" ]]; then
+  # 探测 2: skills 目录存在
+  if [[ -d "$skills_dir" ]]; then
     return 0
   fi
 
-  # 探测 3(agents 别名): 用户主目录存在即可
+  # 探测 3: commands 目录存在(部分工具无 commands 能力,此时 commands_dir 为空)
+  if [[ -n "$commands_dir" && -d "$commands_dir" ]]; then
+    return 0
+  fi
+
+  # 探测 4(agents 别名): 用户主目录存在即可
   if [[ "$tool_id" == "agents" ]]; then
     [[ -d "$HOME" ]] && return 0 || return 1
   fi
@@ -63,14 +69,24 @@ detect_tool() {
   return 1
 }
 
-# 获取工具的 target_dir
-get_target_dir() {
+# 获取工具的 commands_dir(空字符串表示该工具不支持 commands 派生)
+get_commands_dir() {
   local tool_id="$1"
-  local entry target_dir
+  local entry commands_dir
   entry=$(printf '%s\n' "${TOOLS_REGISTRY[@]}" | grep "^${tool_id}|" || true)
   [[ -z "$entry" ]] && return 1
-  IFS='|' read -r _ _ _ target_dir <<< "$entry"
-  printf '%s' "$target_dir"
+  IFS='|' read -r _ _ _ _ commands_dir <<< "$entry"
+  printf '%s' "$commands_dir"
+}
+
+# 获取工具的 target_dir(skills 软链父目录)
+get_target_dir() {
+  local tool_id="$1"
+  local entry skills_dir
+  entry=$(printf '%s\n' "${TOOLS_REGISTRY[@]}" | grep "^${tool_id}|" || true)
+  [[ -z "$entry" ]] && return 1
+  IFS='|' read -r _ _ _ skills_dir _ <<< "$entry"
+  printf '%s' "$skills_dir"
 }
 
 # 获取工具的 display_name
@@ -84,8 +100,9 @@ get_display_name() {
 }
 
 # ============ Skills 扫描 ============
-# 扫描 skills/ 下所有 SKILL.md,输出 name|category|abs_path 列表
+# 扫描 skills/ 下所有 SKILL.md,输出 name|category|abs_path|command 列表
 # 同时校验:name 唯一性 + name == 目录名
+# command 字段:frontmatter 中 command: true 时为 "true",否则为 "false"
 scan_skills() {
   [[ -d "$SKILLS_DIR" ]] || return 0
 
@@ -106,6 +123,17 @@ scan_skills() {
     local fm_name
     fm_name=$(awk '/^---$/{c++; next} c==1 && /^name:[[:space:]]*/{sub(/^name:[[:space:]]*/,""); print; exit}' "$skill_md" 2>/dev/null || true)
 
+    # 提取 frontmatter 中的 command 字段(若存在)
+    local fm_command cmd_flag
+    fm_command=$(awk '/^---$/{c++; next} c==1 && /^command:[[:space:]]*/{sub(/^command:[[:space:]]*/,""); print; exit}' "$skill_md" 2>/dev/null || true)
+    # bash 3.2 兼容:用 tr 替代 ${var,,}
+    fm_command=$(printf '%s' "$fm_command" | tr '[:upper:]' '[:lower:]')
+    if [[ "$fm_command" == "true" ]]; then
+      cmd_flag="true"
+    else
+      cmd_flag="false"
+    fi
+
     # 校验 1:frontmatter 的 name(若存在)必须等于目录名
     if [[ -n "$fm_name" && "$fm_name" != "$name" ]]; then
       warn "skill ${C_BOLD}${name}${C_RESET} (${rel}/SKILL.md) frontmatter 的 name='${fm_name}' 与目录名不一致,可能影响 OpenCode"
@@ -121,7 +149,7 @@ scan_skills() {
     fi
     printf '%s|%s\n' "$name" "$rel" >> "$seen_file"
 
-    printf '%s|%s|%s\n' "$name" "$category" "$dir"
+    printf '%s|%s|%s|%s\n' "$name" "$category" "$dir" "$cmd_flag"
   done < <(find "$SKILLS_DIR" -mindepth 3 -maxdepth 3 -type f -name 'SKILL.md' -print0 2>/dev/null | sort -z)
 
   return $errors

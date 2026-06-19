@@ -55,27 +55,37 @@ trap "rm -f '$LINK_DATA_FILE'" EXIT
 TOOLS_WITH_LINKS=()
 
 for entry in "${TOOLS_REGISTRY[@]}"; do
-  IFS='|' read -r tool_id display _ target_dir <<< "$entry"
+  IFS='|' read -r tool_id display _ skills_dir commands_dir <<< "$entry"
 
-  # 仅考虑父目录存在的
-  if [[ ! -d "$target_dir" ]]; then
-    continue
-  fi
+  # 同时扫描 skills 目录与 commands 目录(若存在)
+  all_names=()
+  for d in "$skills_dir" "$commands_dir"; do
+    [[ -z "$d" ]] && continue
+    [[ -d "$d" ]] || continue
+    while IFS= read -r name; do
+      [[ -n "$name" ]] && all_names+=("$name")
+    done < <(list_installed_links "$d" || true)
+  done
 
-  # 收集指向本项目的软链
-  installed_names=()
-  while IFS= read -r name; do
-    [[ -n "$name" ]] && installed_names+=("$name")
-  done < <(list_installed_links "$target_dir" || true)
+  # 去重(同名可能同时存在于 skills/ 与 commands/)
+  if [[ ${#all_names[@]} -gt 0 ]]; then
+    unique_sorted=()
+    seen=""
+    for n in "${all_names[@]}"; do
+      if [[ " $seen " != *" $n "* ]]; then
+        unique_sorted+=("$n")
+        seen="$seen $n"
+      fi
+    done
+    # 排序以便输出稳定
+    IFS=$'\n' sorted_names=($(printf '%s\n' "${unique_sorted[@]}" | sort))
+    unset IFS
 
-  count=${#installed_names[@]}
-
-  if (( count > 0 )); then
+    count=${#sorted_names[@]}
     TOOLS_WITH_LINKS+=("$tool_id")
-    # 写入临时文件: tool_id|count|names-space-separated
-    printf '%s|%d|%s\n' "$tool_id" "$count" "${installed_names[*]}" >> "$LINK_DATA_FILE"
+    printf '%s|%d|%s\n' "$tool_id" "$count" "${sorted_names[*]}" >> "$LINK_DATA_FILE"
     ok "  [$display] $count 个本项目软链"
-    for n in "${installed_names[@]}"; do
+    for n in "${sorted_names[@]}"; do
       printf '      - %s\n' "$n"
     done
   else
@@ -98,16 +108,14 @@ fi
 # ============ Step 2:选择要清理的目标 ============
 hdr "Step 2/3 — 选择要清理的目标"
 
-SELECTED_DIRS=()
+# 按 tool 维度收集,删除时同时处理 skills_dir + commands_dir
+SELECTED_TIDS=()
 SELECTED_LABELS=()
 
 if (( NON_INTERACTIVE )); then
   if [[ "$CLI_DIRS" == "__ALL__" ]]; then
-    for tid in "${TOOLS_WITH_LINKS[@]}"; do
-      SELECTED_DIRS+=("$(get_target_dir "$tid")")
-      SELECTED_LABELS+=("$(get_display_name "$tid")")
-    done
-    info "非交互 --all:将清理 ${#SELECTED_DIRS[@]} 个目录"
+    SELECTED_TIDS=("${TOOLS_WITH_LINKS[@]}")
+    info "非交互 --all:将清理 ${#SELECTED_TIDS[@]} 个工具"
   else
     IFS=',' read -ra requested <<< "$CLI_DIRS"
     for d in "${requested[@]}"; do
@@ -117,51 +125,35 @@ if (( NON_INTERACTIVE )); then
       if [[ "$d" != /* ]]; then
         d="$PWD/$d"
       fi
-      # 校验:必须在注册表中且有本项目软链
+      # 校验:必须匹配某个 tool 的 skills_dir 或 commands_dir,且该 tool 有本项目软链
       matched=0
       for tid in "${TOOLS_WITH_LINKS[@]}"; do
-        target=$(get_target_dir "$tid")
-        if [[ "$target" == "$d" ]]; then
-          SELECTED_DIRS+=("$target")
-          SELECTED_LABELS+=("$(get_display_name "$tid")")
+        if [[ "$(get_target_dir "$tid")" == "$d" || "$(get_commands_dir "$tid")" == "$d" ]]; then
+          SELECTED_TIDS+=("$tid")
           matched=1
           break
         fi
       done
       if (( !matched )); then
-        warn "目录 $d 没有本项目软链或不存在,跳过"
+        warn "目录 $d 没有本项目软链或不在注册表中,跳过"
       fi
     done
   fi
 else
-  # 交互模式
+  # 交互模式:按 tool 选择
   MENU_INPUT=""
   for tid in "${TOOLS_WITH_LINKS[@]}"; do
     display=$(get_display_name "$tid")
-    target=$(get_target_dir "$tid")
     count=$(tool_count "$tid")
-    MENU_INPUT+="${target}|${display} (${count} 个软链)\n"
+    MENU_INPUT+="${tid}|${display} (${count} 个软链)\n"
   done
-  MENU_INPUT+="all|全部 (${#TOOLS_WITH_LINKS[@]} 个目录)"
+  MENU_INPUT+="all|全部 (${#TOOLS_WITH_LINKS[@]} 个工具)"
 
-  if printf '%b' "$MENU_INPUT" | interactive_select "选择要清理的目录" "默认:全部"; then
+  if printf '%b' "$MENU_INPUT" | interactive_select "选择要清理的工具" "默认:全部"; then
     if [[ "$SELECTED_TOOLS" == "__DEFAULT__" || "$SELECTED_TOOLS" == "__ALL__" ]]; then
-      for tid in "${TOOLS_WITH_LINKS[@]}"; do
-        SELECTED_DIRS+=("$(get_target_dir "$tid")")
-        SELECTED_LABELS+=("$(get_display_name "$tid")")
-      done
+      SELECTED_TIDS=("${TOOLS_WITH_LINKS[@]}")
     else
-      for target in $SELECTED_TOOLS; do
-        # 反查 display
-        for tid in "${TOOLS_WITH_LINKS[@]}"; do
-          t=$(get_target_dir "$tid")
-          if [[ "$t" == "$target" ]]; then
-            SELECTED_LABELS+=("$(get_display_name "$tid")")
-            break
-          fi
-        done
-        SELECTED_DIRS+=("$target")
-      done
+      SELECTED_TIDS=($SELECTED_TOOLS)
     fi
   else
     info "已取消"
@@ -169,11 +161,15 @@ else
   fi
 fi
 
-if [[ ${#SELECTED_DIRS[@]} -eq 0 ]]; then
-  warn "没有选中任何目录"
+if [[ ${#SELECTED_TIDS[@]} -eq 0 ]]; then
+  warn "没有选中任何工具"
   exit 0
 fi
 
+SELECTED_LABELS=()
+for tid in "${SELECTED_TIDS[@]}"; do
+  SELECTED_LABELS+=("$(get_display_name "$tid")")
+done
 info "将清理: ${SELECTED_LABELS[*]}"
 
 # ============ Step 3:删除软链 ============
@@ -183,44 +179,44 @@ REMOVED=0
 SKIPPED=0
 FAILED=0
 
-for idx in "${!SELECTED_DIRS[@]}"; do
-  target_dir="${SELECTED_DIRS[$idx]}"
-  label="${SELECTED_LABELS[$idx]}"
+for tid in "${SELECTED_TIDS[@]}"; do
+  skills_dir=$(get_target_dir "$tid")
+  commands_dir=$(get_commands_dir "$tid")
+  display=$(get_display_name "$tid")
   echo ""
-  info "[$label] 目标: $target_dir/"
+  info "[$display] 清理 skills=$skills_dir commands=$commands_dir"
 
-  if [[ ! -d "$target_dir" ]]; then
-    warn "  目录不存在,跳过"
-    SKIPPED=$((SKIPPED + 1))
-    continue
-  fi
+  # 依次清理 skills 与 commands 目录
+  for target_dir in "$skills_dir" "$commands_dir"; do
+    [[ -z "$target_dir" ]] && continue
+    [[ -d "$target_dir" ]] || continue
 
-  # 再次扫描本项目软链(避免与并发修改冲突)
-  while IFS= read -r name; do
-    [[ -z "$name" ]] && continue
-    link_path="$target_dir/$name"
+    while IFS= read -r name; do
+      [[ -z "$name" ]] && continue
+      link_path="$target_dir/$name"
 
-    # 再次校验:必须是软链 + 指向本项目
-    status=$(check_link_status "$link_path")
-    if [[ "$status" != "1" ]]; then
-      warn "  - $name (状态变更,跳过;当前状态码=$status)"
-      SKIPPED=$((SKIPPED + 1))
-      continue
-    fi
+      # 再次校验:必须是软链 + 指向本项目
+      status=$(check_link_status "$link_path")
+      if [[ "$status" != "1" ]]; then
+        warn "  - $link_path (状态变更,跳过;当前状态码=$status)"
+        SKIPPED=$((SKIPPED + 1))
+        continue
+      fi
 
-    if (( DRY_RUN )); then
-      echo "  [DRY] rm '$link_path'"
-      REMOVED=$((REMOVED + 1))
-    else
-      if rm "$link_path" 2>/dev/null; then
-        ok "  - $name (已删除)"
+      if (( DRY_RUN )); then
+        echo "  [DRY] rm '$link_path'"
         REMOVED=$((REMOVED + 1))
       else
-        err "  ✗ $name (删除失败)"
-        FAILED=$((FAILED + 1))
+        if rm "$link_path" 2>/dev/null; then
+          ok "  - $link_path (已删除)"
+          REMOVED=$((REMOVED + 1))
+        else
+          err "  ✗ $link_path (删除失败)"
+          FAILED=$((FAILED + 1))
+        fi
       fi
-    fi
-  done < <(list_installed_links "$target_dir" || true)
+    done < <(list_installed_links "$target_dir" || true)
+  done
 done
 
 # ============ 汇总 ============

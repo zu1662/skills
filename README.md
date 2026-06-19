@@ -62,25 +62,50 @@ my-skills/
 
 > **frontmatter 兼容说明**:Claude Code 支持大量可选字段(`allowed-tools`、`disable-model-invocation`、`context: fork` 等),OpenCode / Gemini CLI / Codex 只会读取 `name` 与 `description`,多余字段被静默忽略、不报错。
 
+## command 派生(让 OpenCode 也能 `/<name>` 直接调用)
+
+OpenCode / Claude Code 都把 `skills/` 目录里的 SKILL.md 视为可加载技能,但只有 Claude Code 会自动把它们暴露成 `/<name>` 命令;OpenCode 的 `commands/<name>.md` 是独立目录。
+
+解决办法:在 SKILL.md frontmatter 加 `command: true`,install.sh 会**额外**在工具的 `commands/` 目录建一条软链,指向同一份 `SKILL.md`:
+
+```yaml
+---
+name: teach-me
+description: ...
+command: true        # ← 加这一行,表示「我要被派生为 command」
+---
+```
+
+| 工具 | 是否派生 command | 派生路径 |
+|---|---|---|
+| Claude Code | ✅ | `~/.claude/commands/<name>.md` → `SKILL.md` |
+| OpenCode | ✅ | `~/.config/opencode/commands/<name>.md` → `SKILL.md` |
+| Gemini CLI | ❌ 跳过 | Gemini 的 commands 是 TOML,无法软链 markdown;需要 TOML 命令请用其原生机制 |
+| Codex | ❌ 不支持 | Codex 无 commands 机制 |
+
+- 不加 `command: true` 的 skill,只装到 `skills/`,不会污染 `commands/` 目录
+- `command: false` 显式不派生(缺省即为 false)
+- 软链复用同一份 SKILL.md,多工具 frontmatter 字段冲突时(YAML 不识别字段会被静默忽略)
+
 ## 软链目标说明
 
-| 工具 | install 软链目标 | 备注 |
+| 工具 | skills 软链目标 | commands 软链目标(若 `command: true`) |
 |---|---|---|
-| Claude Code | `~/.claude/skills/<name>` | 原生路径 |
-| OpenCode(`.agents/` 别名) | `~/.agents/skills/<name>` | 跨工具兼容 |
-| OpenCode(native) | `~/.config/opencode/skills/<name>` | 原生路径 |
-| Codex | `~/.codex/skills/<name>` | 原生路径 |
+| Claude Code | `~/.claude/skills/<name>` | `~/.claude/commands/<name>.md` |
+| OpenCode(native) | `~/.config/opencode/skills/<name>` | `~/.config/opencode/commands/<name>.md` |
+| OpenCode(`.agents/` 别名) | `~/.agents/skills/<name>` | — |
+| Codex | `~/.codex/skills/<name>` | — |
 
 > `~/.agents/skills/` 由 OpenCode 与 Gemini CLI 共享,install 脚本只创建一条软链,实际指向同一目标。
 
 ## 兼容性矩阵
 
-| 工具 | 路径 | frontmatter 最小集 | 高级字段 |
-|---|---|---|---|
-| Claude Code | `.claude/skills/` | `name` + `description` | ✅ 支持大量 |
-| OpenCode | `.claude/` `.agents/` `.opencode/` 三处皆可 | `name` + `description` | 仅 `license` `compatibility` `metadata` |
-| Codex | `.codex/skills/` (推测) | `name` + `description` | 同上极简 |
-| Gemini CLI | `.gemini/skills/` 或 `.agents/skills/` 别名 | `name` + `description` | 同上极简 |
+| 工具 | skills 路径 | commands 路径 | frontmatter 最小集 | 高级字段 |
+|---|---|---|---|---|
+| Claude Code | `.claude/skills/<name>/SKILL.md` | `.claude/commands/<name>.md`(与 skills 互通) | `name` + `description` | ✅ 支持大量 |
+| OpenCode | `.config/opencode/skills/<name>/SKILL.md`(也读 `.claude/`、`.agents/`) | `.config/opencode/commands/<name>.md` | `name` + `description` | 仅 `license` `compatibility` `metadata` |
+| Codex | `.codex/skills/<name>/SKILL.md` | ❌ | `name` + `description` | 同上极简 |
+| Gemini CLI | `.gemini/skills/<name>/SKILL.md`(或 `.agents/skills/` 别名) | `.gemini/commands/<name>.toml`(**TOML,无法复用 md**) | `name` + `description` | 同上极简 |
 
 ## 命名规范
 

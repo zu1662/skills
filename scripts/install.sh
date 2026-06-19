@@ -57,9 +57,9 @@ info "Skills 源目录: $SKILLS_DIR"
 # ============ Step 1:扫描 skills ============
 hdr "Step 1/4 — 扫描 skills/ 目录"
 SKILLS_LIST=()
-while IFS='|' read -r name category dir; do
+while IFS='|' read -r name category dir command_flag; do
   [[ -z "$name" ]] && continue
-  SKILLS_LIST+=("$name|$category|$dir")
+  SKILLS_LIST+=("$name|$category|$dir|$command_flag")
 done < <(scan_skills) || {
   err "skills 扫描失败(命名冲突或 frontmatter 错误),请修复后重试"
   exit 1
@@ -73,8 +73,12 @@ fi
 
 ok "发现 ${#SKILLS_LIST[@]} 个 skill:"
 for entry in "${SKILLS_LIST[@]}"; do
-  IFS='|' read -r name category _ <<< "$entry"
-  printf '    - %s%s%s (%s/)\n' "$C_BOLD" "$name" "$C_RESET" "$category"
+  IFS='|' read -r name category _ command_flag <<< "$entry"
+  if [[ "$command_flag" == "true" ]]; then
+    printf '    - %s%s%s (%s/, command: enabled)\n' "$C_BOLD" "$name" "$C_RESET" "$category"
+  else
+    printf '    - %s%s%s (%s/)\n' "$C_BOLD" "$name" "$C_RESET" "$category"
+  fi
 done
 
 # ============ Step 2:检测已安装工具 ============
@@ -83,7 +87,7 @@ TOOL_STATUS_FILE=$(mktemp)
 trap "rm -f '$TOOL_STATUS_FILE'" EXIT
 
 for entry in "${TOOLS_REGISTRY[@]}"; do
-  IFS='|' read -r tool_id display _ _ <<< "$entry"
+  IFS='|' read -r tool_id display _ _ _ <<< "$entry"
   if detect_tool "$tool_id"; then
     printf '%s|1\n' "$tool_id" >> "$TOOL_STATUS_FILE"
     ok "  [✓] $display"
@@ -100,7 +104,7 @@ tool_status() {
 # 过滤:仅保留已检测到或被显式指定的工具
 AVAILABLE_TOOLS=()
 for entry in "${TOOLS_REGISTRY[@]}"; do
-  IFS='|' read -r tool_id display _ _ <<< "$entry"
+  IFS='|' read -r tool_id display _ _ _ <<< "$entry"
   if [[ "$(tool_status "$tool_id")" == "1" ]]; then
     AVAILABLE_TOOLS+=("$tool_id")
   fi
@@ -176,11 +180,72 @@ UPDATED=0
 SKIPPED=0
 FAILED=0
 
+# 通用:尝试创建一条软链,通过全局计数与 FORCE/DRY_RUN 副作用更新统计
+# 参数: $1=源路径, $2=链接路径, $3=条目名(显示用), $4=分类(显示用)
+create_link() {
+  local src="$1" link="$2" name="$3" category="$4"
+  local status
+  status=$(check_link_status "$link")
+  case "$status" in
+    0)
+      if (( DRY_RUN )); then
+        echo "  [DRY] ln -s '$src' '$link'"
+      else
+        ln -s "$src" "$link"
+        ok "  + $name (category: $category)"
+      fi
+      CREATED=$((CREATED + 1))
+      ;;
+    1)
+      if (( DRY_RUN )); then
+        echo "  [DRY] $link (已是本项目软链,跳过)"
+      else
+        ok "  = $name (已是本项目软链)"
+      fi
+      SKIPPED=$((SKIPPED + 1))
+      ;;
+    2)
+      if (( FORCE )); then
+        if (( DRY_RUN )); then
+          echo "  [DRY] rm + ln -s '$src' '$link' (--force)"
+        else
+          rm "$link"
+          ln -s "$src" "$link"
+          warn "  ! $name (强制覆盖其他软链)"
+        fi
+        UPDATED=$((UPDATED + 1))
+      else
+        warn "  - $name (目标存在其他软链,跳过;使用 --force 强制覆盖)"
+        SKIPPED=$((SKIPPED + 1))
+      fi
+      ;;
+    3)
+      if (( FORCE )); then
+        if (( DRY_RUN )); then
+          echo "  [DRY] rm -rf '$link' && ln -s '$src' '$link' (--force)"
+        else
+          rm -rf "$link"
+          ln -s "$src" "$link"
+          warn "  ! $name (强制覆盖真实目录)"
+        fi
+        UPDATED=$((UPDATED + 1))
+      else
+        err "  ✗ $name (目标存在同名真实条目,跳过;使用 --force 强制覆盖)"
+        FAILED=$((FAILED + 1))
+      fi
+      ;;
+  esac
+}
+
 for tool_id in "${SELECTED[@]}"; do
   target_dir=$(get_target_dir "$tool_id")
   display=$(get_display_name "$tool_id")
+  commands_dir=$(get_commands_dir "$tool_id")
   echo ""
   info "[$display] 目标: $target_dir/"
+  if [[ -n "$commands_dir" ]]; then
+    info "  commands 派生: $commands_dir/"
+  fi
 
   # 父目录不存在则提示并跳过(不自动创建,避免污染)
   if [[ ! -d "$target_dir" ]]; then
@@ -190,63 +255,20 @@ for tool_id in "${SELECTED[@]}"; do
   fi
 
   for skill_entry in "${SKILLS_LIST[@]}"; do
-    IFS='|' read -r name category src_dir <<< "$skill_entry"
-    link_path="$target_dir/$name"
+    IFS='|' read -r name category src_dir command_flag <<< "$skill_entry"
 
-    status=$(check_link_status "$link_path")
-    case "$status" in
-      0)
-        # 不存在,创建
-        if (( DRY_RUN )); then
-          echo "  [DRY] ln -s '$src_dir' '$link_path'"
-        else
-          ln -s "$src_dir" "$link_path"
-          ok "  + $name (category: $category)"
-        fi
-        CREATED=$((CREATED + 1))
-        ;;
-      1)
-        # 已是本项目软链
-        if (( DRY_RUN )); then
-          echo "  [DRY] $link_path (已是本项目软链,跳过)"
-        else
-          ok "  = $name (已是本项目软链)"
-        fi
+    # 1) skill 软链
+    create_link "$src_dir" "$target_dir/$name" "$name" "$category"
+
+    # 2) command 软链(仅当 skill 声明 command: true 且工具支持)
+    if [[ "$command_flag" == "true" && -n "$commands_dir" ]]; then
+      if [[ -d "$commands_dir" ]]; then
+        create_link "$src_dir/SKILL.md" "$commands_dir/$name.md" "$name.md (cmd)" "$category"
+      else
+        warn "  - $name.md (commands 父目录 $commands_dir 不存在,跳过)"
         SKIPPED=$((SKIPPED + 1))
-        ;;
-      2)
-        # 是其他软链
-        if (( FORCE )); then
-          if (( DRY_RUN )); then
-            echo "  [DRY] rm + ln -s '$src_dir' '$link_path' (--force)"
-          else
-            rm "$link_path"
-            ln -s "$src_dir" "$link_path"
-            warn "  ! $name (强制覆盖其他软链)"
-          fi
-          UPDATED=$((UPDATED + 1))
-        else
-          warn "  - $name (目标存在其他软链,跳过;使用 --force 强制覆盖)"
-          SKIPPED=$((SKIPPED + 1))
-        fi
-        ;;
-      3)
-        # 真实目录/文件
-        if (( FORCE )); then
-          if (( DRY_RUN )); then
-            echo "  [DRY] rm -rf '$link_path' && ln -s '$src_dir' '$link_path' (--force)"
-          else
-            rm -rf "$link_path"
-            ln -s "$src_dir" "$link_path"
-            warn "  ! $name (强制覆盖真实目录)"
-          fi
-          UPDATED=$((UPDATED + 1))
-        else
-          err "  ✗ $name (目标存在同名真实条目,跳过;使用 --force 强制覆盖)"
-          FAILED=$((FAILED + 1))
-        fi
-        ;;
-    esac
+      fi
+    fi
   done
 done
 
