@@ -12,6 +12,7 @@ info "仓库根目录: $(get_repo_root)"
 
 REPO_REAL=$(get_repo_root)
 SKILLS_LIST=()
+BROKEN_LINKS=()
 while IFS='|' read -r name category dir command_flag; do
   [[ -z "$name" ]] && continue
   SKILLS_LIST+=("$name|$category|$dir|$command_flag")
@@ -81,6 +82,7 @@ print_dir_links() {
       printf '        %s ✓%s %s -> %s\n' "$C_GREEN" "$C_RESET" "$n" "$target"
     else
       printf '        %s ✗%s %s (软链已损坏)\n' "$C_RED" "$C_RESET" "$n"
+      BROKEN_LINKS+=("$link_path")
     fi
   done
 }
@@ -178,4 +180,46 @@ else
 fi
 if (( cmd_unreachable > 0 )); then
   warn "$cmd_unreachable 个标记 command: true 的 skill 尚未派生到 commands/,建议重跑 ./scripts/install.sh"
+fi
+
+# ============ 清理损坏软链 ============
+if (( ${#BROKEN_LINKS[@]} > 0 )); then
+  echo ""
+  hdr "发现 ${#BROKEN_LINKS[@]} 个损坏软链"
+  for link in "${BROKEN_LINKS[@]}"; do
+    printf '    %s\n' "$link"
+  done
+  echo ""
+
+  # 优先从 /dev/tty 读取,避免脚本被管道调用时 stdin 已被占用
+  read_from=/dev/tty
+  if [[ ! -r "$read_from" ]]; then
+    read_from=/dev/stdin
+  fi
+
+  ans=""
+  read -r -p "$(echo -e "${C_YELLOW}?${C_RESET}") 是否删除以上损坏软链? [${C_BOLD}Y${C_RESET}/n]: " ans < "$read_from"
+  ans=$(printf '%s' "${ans:-}" | tr -d ' \t' | tr '[:upper:]' '[:lower:]')
+
+  if [[ -z "$ans" || "$ans" == "y" || "$ans" == "yes" || "$ans" == "是" ]]; then
+    deleted=0
+    failed=0
+    for link in "${BROKEN_LINKS[@]}"; do
+      if unlink "$link" 2>/dev/null; then
+        ok "  ✓ 已删除: $link"
+        deleted=$((deleted + 1))
+      else
+        err "  ✗ 删除失败: $link"
+        failed=$((failed + 1))
+      fi
+    done
+    echo ""
+    if (( failed > 0 )); then
+      warn "删除完成: $deleted 个成功, $failed 个失败"
+      exit 1
+    fi
+    ok "已清理 $deleted 个损坏软链"
+  else
+    info "已跳过删除"
+  fi
 fi

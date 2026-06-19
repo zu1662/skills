@@ -158,7 +158,7 @@ else
   done
   MENU_INPUT+="all|全部已检测(${AVAILABLE_TOOLS[*]})"
 
-  if printf '%b' "$MENU_INPUT" | interactive_select "选择要安装到的工具" "默认:全部已检测"; then
+  if interactive_select "选择要安装到的工具" "默认:全部已检测" < <(printf '%b' "$MENU_INPUT"); then
     if [[ "$SELECTED_TOOLS" == "__DEFAULT__" || "$SELECTED_TOOLS" == "__ALL__" ]]; then
       SELECTED=("${AVAILABLE_TOOLS[@]}")
     else

@@ -149,7 +149,7 @@ else
   done
   MENU_INPUT+="all|全部 (${#TOOLS_WITH_LINKS[@]} 个工具)"
 
-  if printf '%b' "$MENU_INPUT" | interactive_select "选择要清理的工具" "默认:全部"; then
+  if interactive_select "选择要清理的工具" "默认:全部" < <(printf '%b' "$MENU_INPUT"); then
     if [[ "$SELECTED_TOOLS" == "__DEFAULT__" || "$SELECTED_TOOLS" == "__ALL__" ]]; then
       SELECTED_TIDS=("${TOOLS_WITH_LINKS[@]}")
     else

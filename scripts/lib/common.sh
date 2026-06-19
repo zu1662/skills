@@ -219,9 +219,19 @@ interactive_select() {
   echo ""
   echo -e "输入选项 ${C_YELLOW}[多选用逗号分隔,如 1,3 或输入 all/全部]${C_RESET} (${default_desc}):"
 
+  # 用户输入必须从控制终端读取,而不是 stdin:
+  # 调用方通常通过 `< <(printf ...)` 把菜单数据喂给 stdin,此时 stdin 已被重定向,
+  # 若再用 `read` 会读到 EOF 立即返回。优先使用 /dev/tty 直连 tty。
+  local read_from
+  if [[ -r /dev/tty ]]; then
+    read_from=/dev/tty
+  else
+    read_from=/dev/stdin
+  fi
+
   local input attempts=0 max_attempts=3
   while (( attempts < max_attempts )); do
-    read -r input
+    read -r input < "$read_from"
     input=$(echo "$input" | tr -d ' \t' | tr '[:upper:]' '[:lower:]')
 
     # 默认(空)
