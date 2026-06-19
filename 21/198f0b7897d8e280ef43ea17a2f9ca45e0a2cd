@@ -1,0 +1,32 @@
+skills/productivity/teach-me/MISSION-FORMAT.md
+  ai_agent 1-31
+skills/productivity/teach-me/RESOURCES-FORMAT.md
+  s_79aa345b4e9636::t_60f7895e3766e9 1-32
+skills/productivity/teach-me/LEARNING-RECORD-FORMAT.md
+  s_79aa345b4e9636::t_142e66a0c8551a 1-46
+skills/productivity/teach-me/GLOSSARY-FORMAT.md
+  s_79aa345b4e9636::t_9c12d32706b5c0 1-35
+skills/productivity/teach-me/SKILL.md
+  s_79aa345b4e9636::t_e4a879c22aa6a0 1-151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "21198f0b7897d8e280ef43ea17a2f9ca45e0a2cd",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  },
+  "sessions": {
+    "s_79aa345b4e9636": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_120e2102effeUu3e8NO351QfVf",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "huazi <huazi@local>"
+    }
+  }
+}
