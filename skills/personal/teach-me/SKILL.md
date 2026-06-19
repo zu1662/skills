@@ -12,11 +12,11 @@ command: true
 
 ## 教学工作区
 
-把当前目录视作用户的"工作区入口"。所有教学产物统一收纳在 `teach-me/` 子目录里,**避免污染工作区根目录**;同时支持**多课程并存**(例如同时学 Vue 和 React),每门主题在 `teach-me-output/courses/<topic-slug>/` 下自包含、互不干扰。
+把当前目录视作用户的"工作区入口"。所有教学产物统一收纳在 `teach-me-output/` 子目录里,**避免污染工作区根目录**;同时支持**多课程并存**(例如同时学 Vue 和 React),每门主题在 `teach-me-output/courses/<topic-slug>/` 下自包含、互不干扰。
 
 ```
 <workspace>/                              # 用户当前目录(教学无关文件正常存在)
-└── teach-me/
+└── teach-me-output/
     ├── INDEX.md                          # 课程清单:所有已注册主题、状态、入口
     └── courses/
         └── <topic-slug>/                 # 一门主题,topic-slug 由主题推导
@@ -40,7 +40,7 @@ command: true
 
 - **首次启用本技能**:在工作区创建 `teach-me-output/courses/<slug>/`,初始化全部子目录与文件。
 - **多主题并存**:为每门主题创建独立的 `<slug>/`,使命、资源、学习记录完全隔离。**不要共用 NOTES.md / MISSION.md**——它们描述的是"为什么学这个"和"对这个主题怎么教",跨主题混用会让两边的上下文互相污染。
-- **跨主题的全局偏好**(通用语言习惯、表达风格等)兜底写在 `teach-me/NOTES.md`;具体主题的偏好以该课程的 `NOTES.md` 为准。
+- **跨主题的全局偏好**(通用语言习惯、表达风格等)兜底写在 `teach-me-output/NOTES.md`;具体主题的偏好以该课程的 `NOTES.md` 为准。
 - **冲突命名**(如 `Vue 2` 与 `Vue 3`)用 `vue-2` / `vue-3` 区分,各自独立。
 
 ### `teach-me-outpu/INDEX.md` 格式
@@ -107,7 +107,7 @@ command: true
 - **复用优先** —— 课程前先读 `<slug>/assets/`,从已有组件拼装
 - **新增组件** —— 若某片段对第二课也有用,**务必抽到 `<slug>/assets/` 再引用**,不要 inline 重复
 - 首个必备组件:所有课程共用的 `style.css`,保证整套课程视觉一致
-- **跨主题共用组件**(如有):先评估复用频率,只对真正高频复用的才提升到 `teach-me/assets/`(顶层);默认留在各主题下,避免过早抽象
+- **跨主题共用组件**(如有):先评估复用频率,只对真正高频复用的才提升到 `teach-me-output/assets/`(顶层);默认留在各主题下,避免过早抽象
 
 ## 使命(Mission)
 
@@ -169,7 +169,7 @@ command: true
 
 两层 NOTES.md:
 
-- `teach-me/NOTES.md` —— 跨主题通用偏好(语言习惯、表达偏好等)
+- `teach-me-output/NOTES.md` —— 跨主题通用偏好(语言习惯、表达偏好等)
 - `teach-me-output/courses/<slug>/NOTES.md` —— 本主题特异偏好(术语替代、拒绝的社区、历史纠错)
 
 每次会话开场前先读主题级的,再读顶层的(后者兜底)。
@@ -200,7 +200,7 @@ command: true
 6. **教学** —— 引导用户完成课程并即时反馈;鼓励用户提问。
 7. **沉淀** —— 把用户真正掌握/修正过的认知写入该主题的 `learning-records/`;把新术语加入 `GLOSSARY.md`。
 8. **自检** —— 对照 MISSION 与学习记录,验证本次产出有意义。
-9. **更新索引**(多主题时) —— 同步 `teach-me/INDEX.md` 的状态、最近课程编号。
+9. **更新索引**(多主题时) —— 同步 `teach-me-output/INDEX.md` 的状态、最近课程编号。
 
 ### 新建主题流程
 
@@ -210,5 +210,5 @@ command: true
 2. **追问用户:为什么想学这个?** —— 在写 MISSION.md 前先访谈,使命含糊比没使命更糟。
 3. 创建 `teach-me-output/courses/<slug>/` 及全部子目录(`lessons/`、`reference/`、`learning-records/`、`assets/`)。
 4. 创建 `MISSION.md`、`NOTES.md`,初始化 `RESOURCES.md`、`GLOSSARY.md`(可暂时为空骨架,后续填充)。
-5. 把主题追加到 `teach-me/INDEX.md`(若多主题)。
+5. 把主题追加到 `teach-me-output/INDEX.md`(若多主题)。
 6. 回到启动流程第 4 步,开始备课。
