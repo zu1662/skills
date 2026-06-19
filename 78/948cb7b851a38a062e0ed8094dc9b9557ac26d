@@ -1,0 +1,33 @@
+scripts/uninstall.sh
+  s_840c5fa34bfaaa::t_7c0c4c2c999eac 58-68,70-82,84,86,88
+  s_840c5fa34bfaaa::t_3cac49dedadaee 111-112,117-118,128,131-132,138,143,148,150,152,154,156,164-165,169-172,182-185,187-204,206-207,210-216,218-219
+scripts/lib/common.sh
+  s_840c5fa34bfaaa::t_94d4d50a4e391b 82,85,88-89
+  s_840c5fa34bfaaa::t_1f7cf834b6158d 103,105,126-136,152
+  s_840c5fa34bfaaa::t_2397fd39d68061 26-28,30-33,42,47,54-55,59-64,72-79
+scripts/install.sh
+  s_840c5fa34bfaaa::t_932954a03458a0 60,62,76-81,90,107
+  s_840c5fa34bfaaa::t_df36d1417f7f7f 183-239,243,246-248,258,260-268,270-271
+skills/productivity/teach-me/SKILL.md
+  s_840c5fa34bfaaa::t_116f983fee606e 6
+README.md
+  s_840c5fa34bfaaa::t_83d4661444b8b3 65-89,92,94-97,103-108
+scripts/verify.sh
+  s_840c5fa34bfaaa::t_d5cf3312877e6f 15,17,30-35,57-61,67,69-70,72-73,76,78,81,83,86-94,110-112,118-119,122,124-125,128-130,133-150,154,156-162,165-167,179-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "78948cb7b851a38a062e0ed8094dc9b9557ac26d",
+  "prompts": {},
+  "sessions": {
+    "s_840c5fa34bfaaa": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_120bca4f8ffe5nif2zsNHAMEFW",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "huazi <huazi@local>"
+    }
+  }
+}
