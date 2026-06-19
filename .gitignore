@@ -26,3 +26,6 @@ yarn-error.log*
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# courses
+teach-me-output
