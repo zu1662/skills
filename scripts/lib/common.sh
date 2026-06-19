@@ -89,7 +89,10 @@ get_display_name() {
 scan_skills() {
   [[ -d "$SKILLS_DIR" ]] || return 0
 
-  local -A seen_names
+  # 唯一性检查:用临时文件记录 (避免 bash 3.2 不支持 local -A)
+  local seen_file
+  seen_file=$(mktemp)
+  trap "rm -f '$seen_file'" RETURN
   local errors=0
 
   while IFS= read -r -d '' skill_md; do
@@ -110,11 +113,13 @@ scan_skills() {
     fi
 
     # 校验 2:全局唯一
-    if [[ -n "${seen_names[$name]:-}" ]]; then
-      err "skill 名称冲突: '${name}' 在 ${seen_names[$name]} 与 ${rel} 均出现"
+    local existing
+    existing=$(grep -F "${name}|" "$seen_file" 2>/dev/null | head -1 || true)
+    if [[ -n "$existing" ]]; then
+      err "skill 名称冲突: '${name}' 在 ${existing##*|} 与 ${rel} 均出现"
       errors=$((errors + 1))
     fi
-    seen_names[$name]="$rel"
+    printf '%s|%s\n' "$name" "$rel" >> "$seen_file"
 
     printf '%s|%s|%s\n' "$name" "$category" "$dir"
   done < <(find "$SKILLS_DIR" -mindepth 3 -maxdepth 3 -type f -name 'SKILL.md' -print0 2>/dev/null | sort -z)

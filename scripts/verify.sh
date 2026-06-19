@@ -19,6 +19,9 @@ done < <(scan_skills) || true
 
 if [[ ${#SKILLS_LIST[@]} -eq 0 ]]; then
   warn "skills/ 目录下没有发现任何 skill"
+  echo ""
+  info "提示:在 skills/<category>/<skill-name>/SKILL.md 添加 skill 后重试"
+  exit 0
 fi
 
 echo ""
@@ -31,12 +34,21 @@ done
 # ============ 检查每个工具的目标目录 ============
 hdr "工具级软链状态"
 
-declare -A CLI_CMDS=(
-  [claude]="claude skills list"
-  [opencode]="opencode skills list"
-  [codex]="codex skills list"
-  [agents]=""  # 共享别名,无独立 CLI
-)
+# CLI 调用模板 (避免 bash 3.2 不支持 declare -A)
+CLI_CMDS_CLAUDE="claude skills list"
+CLI_CMDS_OPENCODE="opencode skills list"
+CLI_CMDS_CODEX="codex skills list"
+CLI_CMDS_AGENTS=""
+
+get_cli_cmd() {
+  case "$1" in
+    claude)   echo "$CLI_CMDS_CLAUDE" ;;
+    opencode) echo "$CLI_CMDS_OPENCODE" ;;
+    codex)    echo "$CLI_CMDS_CODEX" ;;
+    agents)   echo "$CLI_CMDS_AGENTS" ;;
+    *)        echo "" ;;
+  esac
+}
 
 for entry in "${TOOLS_REGISTRY[@]}"; do
   IFS='|' read -r tool_id display _ target_dir <<< "$entry"
@@ -72,14 +84,12 @@ for entry in "${TOOLS_REGISTRY[@]}"; do
   done
 
   # 调用工具 CLI 列出 skills(若可用)
-  if [[ -n "${CLI_CMDS[$tool_id]:-}" ]]; then
-    cmd="${CLI_CMDS[$tool_id]}"
-    if command -v "${cmd%% *}" >/dev/null 2>&1; then
-      echo ""
-      info "  执行: $cmd"
-      if ! $cmd 2>&1 | head -20; then
-        warn "  CLI 调用失败(不影响软链状态)"
-      fi
+  cmd=$(get_cli_cmd "$tool_id")
+  if [[ -n "$cmd" ]] && command -v "${cmd%% *}" >/dev/null 2>&1; then
+    echo ""
+    info "  执行: $cmd"
+    if ! $cmd 2>&1 | head -20; then
+      warn "  CLI 调用失败(不影响软链状态)"
     fi
   fi
 done
@@ -88,24 +98,34 @@ done
 hdr "完整性检查"
 
 # 检查仓库内每个 skill 至少在一个工具目录下可达
-declare -A SKILL_REACHABLE
+# 用临时文件避免 bash 3.2 不支持 declare -A
+REACH_FILE=$(mktemp)
+trap "rm -f '$REACH_FILE'" EXIT
+
 for s_entry in "${SKILLS_LIST[@]}"; do
   IFS='|' read -r s_name _ _ <<< "$s_entry"
-  SKILL_REACHABLE[$s_name]=0
+  printf '%s|0\n' "$s_name" >> "$REACH_FILE"
 done
 
 for entry in "${TOOLS_REGISTRY[@]}"; do
   IFS='|' read -r _ _ _ target_dir <<< "$entry"
   [[ -d "$target_dir" ]] || continue
   while IFS= read -r name; do
-    [[ -n "$name" ]] && SKILL_REACHABLE[$name]=1
+    [[ -z "$name" ]] && continue
+    # 把行从 0 改为 1
+    if grep -q "^${name}|0$" "$REACH_FILE" 2>/dev/null; then
+      sed -i.bak "s/^${name}|0$/${name}|1/" "$REACH_FILE" 2>/dev/null || \
+        sed -i '' "s/^${name}|0$/${name}|1/" "$REACH_FILE"
+      rm -f "$REACH_FILE.bak"
+    fi
   done < <(list_installed_links "$target_dir" || true)
 done
 
 unreachable=0
 for s_entry in "${SKILLS_LIST[@]}"; do
   IFS='|' read -r s_name _ _ <<< "$s_entry"
-  if [[ "${SKILL_REACHABLE[$s_name]}" == "0" ]]; then
+  status=$(grep -F "${s_name}|" "$REACH_FILE" 2>/dev/null | head -1 | cut -d'|' -f2)
+  if [[ "$status" != "1" ]]; then
     warn "  ✗ $s_name (无任何工具可访问 — 请运行 ./scripts/install.sh)"
     unreachable=$((unreachable + 1))
   else

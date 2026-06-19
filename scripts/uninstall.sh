@@ -48,9 +48,11 @@ REPO_REAL=$(get_repo_root)
 # ============ Step 1:扫描所有目标目录的本项目软链 ============
 hdr "Step 1/3 — 扫描已安装的软链"
 
-declare -A TOOL_LINK_COUNT
-declare -A TOOL_INSTALLED_NAMES
-declare -a TOOLS_WITH_LINKS=()
+# 用临时文件记录 (避免 bash 3.2 不支持 declare -A)
+LINK_DATA_FILE=$(mktemp)
+trap "rm -f '$LINK_DATA_FILE'" EXIT
+
+TOOLS_WITH_LINKS=()
 
 for entry in "${TOOLS_REGISTRY[@]}"; do
   IFS='|' read -r tool_id display _ target_dir <<< "$entry"
@@ -67,11 +69,11 @@ for entry in "${TOOLS_REGISTRY[@]}"; do
   done < <(list_installed_links "$target_dir" || true)
 
   count=${#installed_names[@]}
-  TOOL_LINK_COUNT[$tool_id]=$count
-  TOOL_INSTALLED_NAMES[$tool_id]="${installed_names[*]:-}"
 
   if (( count > 0 )); then
     TOOLS_WITH_LINKS+=("$tool_id")
+    # 写入临时文件: tool_id|count|names-space-separated
+    printf '%s|%d|%s\n' "$tool_id" "$count" "${installed_names[*]}" >> "$LINK_DATA_FILE"
     ok "  [$display] $count 个本项目软链"
     for n in "${installed_names[@]}"; do
       printf '      - %s\n' "$n"
@@ -80,6 +82,13 @@ for entry in "${TOOLS_REGISTRY[@]}"; do
     printf '  [ ] %s (无本项目软链)\n' "$display"
   fi
 done
+
+tool_count() {
+  grep -F "$1|" "$LINK_DATA_FILE" 2>/dev/null | head -1 | cut -d'|' -f2
+}
+tool_names() {
+  grep -F "$1|" "$LINK_DATA_FILE" 2>/dev/null | head -1 | cut -d'|' -f3
+}
 
 if [[ ${#TOOLS_WITH_LINKS[@]} -eq 0 ]]; then
   info "未发现任何本项目软链,无需卸载"
@@ -130,7 +139,7 @@ else
   for tid in "${TOOLS_WITH_LINKS[@]}"; do
     display=$(get_display_name "$tid")
     target=$(get_target_dir "$tid")
-    count=${TOOL_LINK_COUNT[$tid]}
+    count=$(tool_count "$tid")
     MENU_INPUT+="${target}|${display} (${count} 个软链)\n"
   done
   MENU_INPUT+="all|全部 (${#TOOLS_WITH_LINKS[@]} 个目录)"
@@ -201,6 +210,7 @@ for idx in "${!SELECTED_DIRS[@]}"; do
 
     if (( DRY_RUN )); then
       echo "  [DRY] rm '$link_path'"
+      REMOVED=$((REMOVED + 1))
     else
       if rm "$link_path" 2>/dev/null; then
         ok "  - $name (已删除)"

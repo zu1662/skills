@@ -79,23 +79,29 @@ done
 
 # ============ Step 2:检测已安装工具 ============
 hdr "Step 2/4 — 检测已安装工具"
-declare -A TOOL_STATUS
+TOOL_STATUS_FILE=$(mktemp)
+trap "rm -f '$TOOL_STATUS_FILE'" EXIT
+
 for entry in "${TOOLS_REGISTRY[@]}"; do
   IFS='|' read -r tool_id display _ _ <<< "$entry"
   if detect_tool "$tool_id"; then
-    TOOL_STATUS[$tool_id]=1
+    printf '%s|1\n' "$tool_id" >> "$TOOL_STATUS_FILE"
     ok "  [✓] $display"
   else
-    TOOL_STATUS[$tool_id]=0
+    printf '%s|0\n' "$tool_id" >> "$TOOL_STATUS_FILE"
     printf '  [ ] %s%s%s\n' "$C_YELLOW" "$display" "$C_RESET"
   fi
 done
 
+tool_status() {
+  grep -F "$1|" "$TOOL_STATUS_FILE" 2>/dev/null | head -1 | cut -d'|' -f2
+}
+
 # 过滤:仅保留已检测到或被显式指定的工具
-declare -a AVAILABLE_TOOLS
+AVAILABLE_TOOLS=()
 for entry in "${TOOLS_REGISTRY[@]}"; do
   IFS='|' read -r tool_id display _ _ <<< "$entry"
-  if [[ "${TOOL_STATUS[$tool_id]}" == "1" ]]; then
+  if [[ "$(tool_status "$tool_id")" == "1" ]]; then
     AVAILABLE_TOOLS+=("$tool_id")
   fi
 done
@@ -127,7 +133,7 @@ if (( NON_INTERACTIVE )); then
         exit 1
       fi
       # 校验:已检测到
-      if [[ "${TOOL_STATUS[$tid]}" != "1" ]]; then
+      if [[ "$(tool_status "$tid")" != "1" ]]; then
         warn "工具 $(get_display_name "$tid") 未检测到,跳过"
         continue
       fi
