@@ -1,0 +1,33 @@
+scripts/lib/common.sh
+  s_79aa345b4e9636::t_a3467f9f024466 92-95,116-119,122
+scripts/verify.sh
+  s_79aa345b4e9636::t_f7ea8f4d7e95a0 101-104,107,114-120
+  s_79aa345b4e9636::t_f85d659213a9f8 127-128
+  s_79aa345b4e9636::t_89b976363b54a2 37-51,87-92
+  s_79aa345b4e9636::t_494f904be1492e 22-24
+skills/demo/demo-skill/SKILL.md
+  ai_agent 1-17
+scripts/install.sh
+  s_79aa345b4e9636::t_f6868ca80cdbac 82-84,88,91,96-99,101,104
+  s_79aa345b4e9636::t_cef4844f50ee33 136
+scripts/uninstall.sh
+  s_79aa345b4e9636::t_f7fae922184e4e 213
+  s_79aa345b4e9636::t_e0d5225b02c9ad 51-55,75-76,86-91
+  s_79aa345b4e9636::t_4d505e720d6ef1 142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "d8c53ba0abc3aaff033cc11f788fadf148d2a78e",
+  "prompts": {},
+  "sessions": {
+    "s_79aa345b4e9636": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_120e2102effeUu3e8NO351QfVf",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "huazi <huazi@local>"
+    }
+  }
+}
