@@ -1,0 +1,35 @@
+scripts/lib/common.sh
+  s_58daf4602893f6::t_84897647d3b6c9 222-231,234
+scripts/uninstall.sh
+  s_58daf4602893f6::t_81a4e11a4cbdd9 152
+scripts/install.sh
+  s_58daf4602893f6::t_0fc8eaeb2428db 161
+skills/personal/teach-me/SKILL.md
+  h_d8c66562a39f32 3
+scripts/verify.sh
+  s_58daf4602893f6::t_1354193ffde876 184-194,197-199,201,203-225
+  s_58daf4602893f6::t_7d6a1bfab064bf 195-196
+  s_58daf4602893f6::t_c5658ad63e6322 200,202
+  s_58daf4602893f6::t_78bc3da94abe14 15,85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "51e7862acd8212710a0694c5139bf463cf0f37c5",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  },
+  "sessions": {
+    "s_58daf4602893f6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_11fa7c775ffeY65zkKSR32O1Z7",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "huazi <huazi@local>"
+    }
+  }
+}
