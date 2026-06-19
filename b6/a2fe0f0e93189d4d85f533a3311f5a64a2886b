@@ -1,0 +1,16 @@
+skills/productivity/teach-me/SKILL.md
+  h_d8c66562a39f32 15,41,46,93,105,156,173,196,207,211
+.gitignore
+  h_d8c66562a39f32 29-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "b6a2fe0f0e93189d4d85f533a3311f5a64a2886b",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  }
+}
