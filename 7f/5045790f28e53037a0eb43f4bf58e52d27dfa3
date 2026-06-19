@@ -1,0 +1,16 @@
+skills/personal/teach-me/SKILL.md
+  h_d8c66562a39f32 15,19,43,110,172,203,213
+skills/tcwith/wiki-fetcher/SKILL.md
+  h_d8c66562a39f32 1-222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "7f5045790f28e53037a0eb43f4bf58e52d27dfa3",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  }
+}
