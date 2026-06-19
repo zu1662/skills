@@ -1,6 +1,6 @@
 ---
 name: teach-me
-description: 在当前工作区内教用户一项新技能或新概念。这是一个有状态请求——用户打算跨多次会话持续学习此主题。当用户说"教我XX"、"我想学XX"、"帮我入门XX"、"制定XX学习计划"时,使用本技能。
+description: 在当前工作区内教用户一项新技能或新概念。这是一个有状态请求——用户打算跨多次会话持续学习此主题。支持同时学习多个主题(例如 Vue 和 React 并行),每门主题独立维护自己的学习档案。当用户说"教我XX"、"我想学XX"、"帮我入门XX"、"制定XX学习计划"时,使用本技能。
 argument-hint: "你想学什么主题?"
 disable-model-invocation: true
 command: true
@@ -12,15 +12,54 @@ command: true
 
 ## 教学工作区
 
-把当前目录视作用户的"教学工作区"。其学习状态由以下文件承载:
+把当前目录视作用户的"工作区入口"。所有教学产物统一收纳在 `teach-me/` 子目录里,**避免污染工作区根目录**;同时支持**多课程并存**(例如同时学 Vue 和 React),每门主题在 `teach-me/courses/<topic-slug>/` 下自包含、互不干扰。
 
-- `MISSION.md` — 捕获用户学习本主题的**真实理由**。所有教学决策都应以此为锚点。格式见 [MISSION-FORMAT.md](./MISSION-FORMAT.md)。
-- `./reference/*.html` — 参考资料目录。沉淀课程中压缩出的精华:速查表、算法、语法、体式、术语表等。这些是学习的"原材料"——应当排版精美、可打印、便于快速查阅。
-- `RESOURCES.md` — 可信资源列表,用于为教学提供上下文知识,或获取知识与智慧。格式见 [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md)。
-- `./learning-records/*.md` — 学习记录目录,记录用户学到的内容。类似于软件开发中的架构决策记录(ADR)——捕获非显而易见的经验与关键洞察,这些内容后续可能需要修正,或驱动后续课程。用于计算**最近发展区**。命名 `0001-<dash-case-name>.md`,编号递增。格式见 [LEARNING-RECORD-FORMAT.md](./LEARNING-RECORD-FORMAT.md)。
-- `./lessons/*.html` — 课程目录。**课程**是单一、自包含的 HTML 输出,教授一个与使命强相关、范围紧凑的主题,是教学工作区的主要产出单元。
-- `./assets/*` — 跨课程复用的**组件**。详见 [组件](#组件assets)。
-- `NOTES.md` — 教学 scratchpad。用于随手记录用户偏好与教学风格备忘。
+```
+<workspace>/                              # 用户当前目录(教学无关文件正常存在)
+└── teach-me/
+    ├── INDEX.md                          # 课程清单:所有已注册主题、状态、入口
+    └── courses/
+        └── <topic-slug>/                 # 一门主题,topic-slug 由主题推导
+            ├── MISSION.md                # 用户学本主题的真实理由(决策锚点)
+            ├── RESOURCES.md              # 可信资源精选(讲解只从这里取)
+            ├── NOTES.md                  # 本主题的教学偏好/风格备忘
+            ├── GLOSSARY.md               # 本主题的术语表(压缩后的语言)
+            ├── lessons/                  # 课程 HTML(主要产出单元)
+            ├── reference/                # 速查文档、语法/算法/体式沉淀
+            ├── learning-records/         # 学习记录,0001-slug.md 顺序编号
+            └── assets/                   # 本主题复用的样式/组件
+```
+
+**topic-slug 推导规则**:把主题小写、空格转 `-`、去标点。例如:
+- `Vue` → `vue`
+- `React + TypeScript` → `react-typescript`
+- `Rust CLI` → `rust-cli`
+- `瑜伽` → `瑜伽`(中文也支持,但英文 slug 更稳)
+
+### 单主题 vs 多主题
+
+- **首次启用本技能**:在工作区创建 `teach-me/courses/<slug>/`,初始化全部子目录与文件。
+- **多主题并存**:为每门主题创建独立的 `<slug>/`,使命、资源、学习记录完全隔离。**不要共用 NOTES.md / MISSION.md**——它们描述的是"为什么学这个"和"对这个主题怎么教",跨主题混用会让两边的上下文互相污染。
+- **跨主题的全局偏好**(通用语言习惯、表达风格等)兜底写在 `teach-me/NOTES.md`;具体主题的偏好以该课程的 `NOTES.md` 为准。
+- **冲突命名**(如 `Vue 2` 与 `Vue 3`)用 `vue-2` / `vue-3` 区分,各自独立。
+
+### `teach-me/INDEX.md` 格式
+
+仅在多主题时维护,作为入口导航。每次新建/归档主题时更新。
+
+```md
+# 课程清单
+
+最后更新: 2026-06-19
+
+| 主题 | Slug | 状态 | 最近课程 | 入口 |
+|------|------|------|----------|------|
+| Vue | vue | 进行中 | LR-0003 | [MISSION](./courses/vue/MISSION.md) |
+| React | react | 入门 | LR-0001 | [MISSION](./courses/react/MISSION.md) |
+| 已归档 | rust-cli | 已完成 | LR-0012 | [MISSION](./courses/rust-cli/MISSION.md) |
+```
+
+`状态`:入门 / 进行中 / 暂缓 / 已完成 / 已归档。`最近课程`填最后一条 `learning-records/` 的编号。
 
 ## 教学哲学
 
@@ -51,7 +90,7 @@ command: true
 
 **课程**是教学的核心产出物:一个自包含的 HTML 文件,教授一个与使命强相关、处于最近发展区内的**小主题**。
 
-- **命名**:`./lessons/0001-<dash-case-name>.html`(扫描现有最高序号递增)
+- **路径**:`teach-me/courses/<topic-slug>/lessons/0001-<dash-case-name>.html`(扫描该主题下 lessons/ 现有最高序号递增)
 - **美观**:干净排版、可打印;以 Tufte 的风格为目标
 - **短小**:5–15 分钟可完成,聚焦"单一可达成的小胜利"
 - **引用**:每条主张附可点击的外部来源(对应 `RESOURCES.md`)
@@ -63,15 +102,16 @@ command: true
 
 ## 组件(assets)
 
-可复用**组件**存放于 `./assets/`:样式表、测验组件、模拟器、图表助手等。
+可复用**组件**存放于每门主题自己的 `teach-me/courses/<slug>/assets/` 下:样式表、测验组件、模拟器、图表助手等。
 
-- **复用优先** —— 课程前先读 `./assets/`,从已有组件拼装
-- **新增组件** —— 若某片段对第二课也有用,**务必抽到 `./assets/` 再引用**,不要 inline 重复
+- **复用优先** —— 课程前先读 `<slug>/assets/`,从已有组件拼装
+- **新增组件** —— 若某片段对第二课也有用,**务必抽到 `<slug>/assets/` 再引用**,不要 inline 重复
 - 首个必备组件:所有课程共用的 `style.css`,保证整套课程视觉一致
+- **跨主题共用组件**(如有):先评估复用频率,只对真正高频复用的才提升到 `teach-me/assets/`(顶层);默认留在各主题下,避免过早抽象
 
 ## 使命(Mission)
 
-每节课都必须服务于 `MISSION.md` —— 用户学习此主题的真实原因。
+每节课都必须服务于该主题的 `MISSION.md` —— 用户学习本主题的真实原因。
 
 若 `MISSION.md` 缺失或含糊,**第一步永远是追问用户:你为什么想学这个?** 之后再决定课程内容。
 
@@ -84,7 +124,7 @@ command: true
 每节课都应让用户感到"刚好有点挑战"。
 
 - 用户明确指定 → 直接教
-- 未指定 → 读 `learning-records/` 推断其 ZPD,挑选最相关的课题
+- 未指定 → 读该主题 `learning-records/` 推断其 ZPD,挑选最相关的课题
 
 ## 知识
 
@@ -107,13 +147,13 @@ command: true
 
 当用户提出偏"经验判断"的问题时:
 
-1. 尝试基于 `RESOURCES.md` 给出答案
+1. 尝试基于该主题 `RESOURCES.md` 给出答案
 2. 默认行为:**最终将其引导到对应社区**(论坛、subreddit、线下课、兴趣小组)
-3. 尊重用户意愿——若不愿加入社区,**记入 `NOTES.md`**,后续会话不再重复推荐
+3. 尊重用户意愿——若不愿加入社区,**记入该主题的 `NOTES.md`**,后续会话不再重复推荐
 
 ## 参考文档(reference)
 
-课程之外,持续沉淀 `./reference/*.html` 速查文档——它们的访问频率远高于课程。
+课程之外,持续沉淀 `teach-me/courses/<slug>/reference/*.html` 速查文档——它们的访问频率远高于课程。
 
 适合做速查文档的内容:
 
@@ -127,7 +167,14 @@ command: true
 
 ## `NOTES.md`
 
-记录用户的偏好与教学风格,每次会话开场前先读一遍:
+两层 NOTES.md:
+
+- `teach-me/NOTES.md` —— 跨主题通用偏好(语言习惯、表达偏好等)
+- `teach-me/courses/<slug>/NOTES.md` —— 本主题特异偏好(术语替代、拒绝的社区、历史纠错)
+
+每次会话开场前先读主题级的,再读顶层的(后者兜底)。
+
+记录的内容示例:
 
 - 语言 / 术语习惯(如"用 fetch 而不是 ajax")
 - 表达偏好("讲解时多举例"、"别用类比")
@@ -136,6 +183,8 @@ command: true
 
 ## 参考文件(按需加载)
 
+本目录(`~/.claude/skills/teach-me/`)下的格式文件:
+
 - `MISSION-FORMAT.md` — 使命文档的格式与填写规则
 - `RESOURCES-FORMAT.md` — 资源库的格式与可信度筛选
 - `LEARNING-RECORD-FORMAT.md` — 学习记录的书写规范、编号与取代规则
@@ -143,10 +192,23 @@ command: true
 
 ## 启动流程(每次会话开场)
 
-1. **定位** —— 读 `MISSION.md` 与最近 1~3 条学习记录,确定本次目标。
-2. **备课** —— 对照 `RESOURCES.md` 检索/补充可信资料;若资源不足,**先搜资源,再设计课程**。
-3. **设计课程** —— 优先复用 `./assets/` 组件;HTML 输出到 `./lessons/NNNN-<slug>.html`。
-4. **教学** —— 引导用户完成课程并即时反馈;鼓励用户提问。
-5. **沉淀** —— 把用户真正掌握/修正过的认知写入 `learning-records/`;把新术语加入 `GLOSSARY.md`。
-6. **自检** —— 对照 MISSION 与学习记录,验证本次产出有意义。
+1. **定位主题** —— 询问或推断用户本次要推进的主题,推导 topic-slug。
+2. **定位课程目录** —— 检查 `teach-me/courses/<slug>/` 是否存在。
+3. **读上下文**(目录存在时) —— 读该主题的 `MISSION.md`、最近 1~3 条学习记录、`NOTES.md`,确定本次目标。
+4. **备课** —— 对照该主题的 `RESOURCES.md` 检索/补充可信资料;若资源不足,**先搜资源,再设计课程**。
+5. **设计课程** —— 优先复用 `./assets/` 组件;HTML 输出到 `./lessons/NNNN-<slug>.html`。
+6. **教学** —— 引导用户完成课程并即时反馈;鼓励用户提问。
+7. **沉淀** —— 把用户真正掌握/修正过的认知写入该主题的 `learning-records/`;把新术语加入 `GLOSSARY.md`。
+8. **自检** —— 对照 MISSION 与学习记录,验证本次产出有意义。
+9. **更新索引**(多主题时) —— 同步 `teach-me/INDEX.md` 的状态、最近课程编号。
 
+### 新建主题流程
+
+仅当 `teach-me/courses/<slug>/` 不存在时执行。
+
+1. 推导 topic-slug。
+2. **追问用户:为什么想学这个?** —— 在写 MISSION.md 前先访谈,使命含糊比没使命更糟。
+3. 创建 `teach-me/courses/<slug>/` 及全部子目录(`lessons/`、`reference/`、`learning-records/`、`assets/`)。
+4. 创建 `MISSION.md`、`NOTES.md`,初始化 `RESOURCES.md`、`GLOSSARY.md`(可暂时为空骨架,后续填充)。
+5. 把主题追加到 `teach-me/INDEX.md`(若多主题)。
+6. 回到启动流程第 4 步,开始备课。
