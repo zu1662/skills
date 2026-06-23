@@ -1,0 +1,20 @@
+hooks/danger-block.sh
+  h_d8c66562a39f32 1-22
+skills/personal/teach-me/SKILL.md
+  h_d8c66562a39f32 106,137-138
+skills/productivity/brainstorming/SKILL.md
+  h_d8c66562a39f32 14-15
+hooks/hooks.json
+  h_d8c66562a39f32 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "d6de7b6be75d340d85bd5d21c21d7757a23bd9c5",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  }
+}
