@@ -9,7 +9,6 @@ const { spawnSync } = require("node:child_process");
 const commonDir = __dirname;
 const repoRoot = path.resolve(commonDir, "..", "..");
 const skillsDir = path.join(repoRoot, "skills");
-const rootCommandsDir = path.join(repoRoot, "commands");
 const homeDir = os.homedir();
 const isWindows = process.platform === "win32";
 
@@ -49,24 +48,8 @@ const toolsRegistry = [
     commandSourceDir: path.join(repoRoot, ".opencode", "commands"),
   },
   {
-    id: "gemini",
-    display: "Gemini CLI",
-    cli: "gemini",
-    skillsDir: path.join(homeDir, ".gemini", "skills"),
-    commandsDir: path.join(homeDir, ".gemini", "commands"),
-    commandSourceDir: path.join(repoRoot, ".gemini", "commands"),
-  },
-  {
     id: "copilot",
     display: "GitHub Copilot",
-    cli: "-",
-    skillsDir: "",
-    commandsDir: "",
-    commandSourceDir: "",
-  },
-  {
-    id: "cursor",
-    display: "Cursor",
     cli: "-",
     skillsDir: "",
     commandsDir: "",
@@ -79,14 +62,6 @@ const toolsRegistry = [
     skillsDir: path.join(homeDir, ".codex", "skills"),
     commandsDir: "",
     commandSourceDir: "",
-  },
-  {
-    id: "agents",
-    display: ".agents (OpenCode+Gemini CLI 共享)",
-    cli: "-",
-    skillsDir: path.join(homeDir, ".agents", "skills"),
-    commandsDir: path.join(homeDir, ".agents", "commands"),
-    commandSourceDir: rootCommandsDir,
   },
 ];
 
@@ -157,10 +132,6 @@ function detectTool(toolId) {
     return true;
   }
 
-  if (toolId === "agents") {
-    return dirExists(homeDir);
-  }
-
   return false;
 }
 
@@ -197,16 +168,10 @@ function getDisplayName(toolId) {
 }
 
 function getSkillLinkPath(toolId, targetDir, name) {
-  if (toolId === "cursor") {
-    return path.join(targetDir, `${name}.md`);
-  }
   return path.join(targetDir, name);
 }
 
 function getSkillLinkSource(toolId, sourceDir) {
-  if (toolId === "cursor") {
-    return path.join(sourceDir, "SKILL.md");
-  }
   return sourceDir;
 }
 
@@ -489,7 +454,6 @@ module.exports = {
   colors,
   repoRoot,
   skillsDir,
-  rootCommandsDir,
   toolsRegistry,
   getRepoRoot,
   scanSkills,

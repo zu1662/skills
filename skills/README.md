@@ -88,7 +88,7 @@ description: 一句话描述触发场景,≤1024 字符
 ---
 ```
 
-`SKILL.md` 只放通用业务说明。`argument-hint`、`disable-model-invocation`、`user-invocable`、`allowed-tools`、`context` 等工具专属字段,维护在仓库根目录下对应工具配置中,例如 `.claude/commands/<name>.md`、`.gemini/commands/<name>.toml`、`.opencode/commands/<name>.toml` 或 `commands/<name>.toml`。
+`SKILL.md` 只放通用业务说明。`argument-hint`、`disable-model-invocation`、`user-invocable`、`allowed-tools`、`context` 等工具专属字段,维护在仓库根目录下对应工具配置中,例如 `.claude/commands/<name>.md` 或 `.opencode/commands/<name>.toml`。
 
 **trigger 写法**(description 中的最佳实践):
 

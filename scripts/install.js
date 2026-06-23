@@ -40,7 +40,7 @@ function printUsage() {
 
 选项:
   --all                  非交互,安装到全部已检测工具
-  --tools <id,id,...>    非交互,指定工具 id(claude,opencode,gemini,copilot,cursor,codex,agents)
+  --tools <id,id,...>    非交互,指定工具 id(claude,opencode,copilot,codex)
   --dry-run              只打印将要执行的操作,不实际创建
   --force                强制覆盖已存在的同名非软链条目
   -h, --help             显示帮助
@@ -48,16 +48,13 @@ function printUsage() {
 工具 id:
   claude     Claude Code(~/.claude/skills/, ~/.claude/commands/)
   opencode   OpenCode(~/.config/opencode/skills/, ~/.config/opencode/commands/)
-  gemini     Gemini CLI(~/.gemini/skills/, ~/.gemini/commands/)
   copilot    GitHub Copilot(不自动安装;请维护 .github/ 下的显式配置)
-  cursor     Cursor(不自动安装;请维护 .cursor/ 下的显式配置)
   codex      Codex(~/.codex/skills/)
-  agents     .agents 别名(~/.agents/skills/, ~/.agents/commands/ — 由 OpenCode 与 Gemini CLI 共享)
 
 示例:
   node scripts/install.js                           交互式
   node scripts/install.js --all                     安装到全部已检测
-  node scripts/install.js --tools claude,gemini     仅安装到 Claude Code + Gemini CLI
+  node scripts/install.js --tools claude,opencode   仅安装到 Claude Code + OpenCode
   node scripts/install.js --dry-run --all           预览将执行的操作`);
 }
 
@@ -223,7 +220,7 @@ async function main() {
   const availableTools = toolsRegistry.filter((tool) => statusByTool.get(tool.id)).map((tool) => tool.id);
   if (availableTools.length === 0) {
     warn("未检测到任何已安装的 AI 工具");
-    info("请先安装至少一个工具(Claude Code / OpenCode / Codex / Gemini CLI)");
+    info("请先安装至少一个工具(Claude Code / OpenCode / Codex / GitHub Copilot)");
     return;
   }
 
