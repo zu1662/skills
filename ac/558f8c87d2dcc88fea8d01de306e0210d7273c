@@ -1,0 +1,14 @@
+.gitignore
+  h_d8c66562a39f32 32-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "ac558f8c87d2dcc88fea8d01de306e0210d7273c",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  }
+}
