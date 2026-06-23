@@ -1,0 +1,26 @@
+scripts/install.js
+  s_ca64682d2b0435::t_b42057b60785c5 43
+  s_ca64682d2b0435::t_460f1ea917ca7a 223
+  s_ca64682d2b0435::t_ed19abe4b5a6c6 57
+README.md
+  s_ca64682d2b0435::t_09edf2b6083e58 3
+  s_ca64682d2b0435::t_48c0375c0df79a 70
+skills/README.md
+  s_ca64682d2b0435::t_36a708e6a8065a 91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "526169667b1bd60aa88ea53e859e0aed48ba8a13",
+  "prompts": {},
+  "sessions": {
+    "s_ca64682d2b0435": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46957bb2-a60c-410f-8ba7-d0da176de065",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "huazi <huazi@local>"
+    }
+  }
+}
