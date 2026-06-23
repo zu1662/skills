@@ -8,10 +8,12 @@ const {
   toolsRegistry,
   getRepoRoot,
   scanSkills,
+  scanCommandFiles,
   detectTool,
   getTool,
   getTargetDir,
   getCommandsDir,
+  getCommandSourceDir,
   getDisplayName,
   getSkillLinkPath,
   getSkillLinkSource,
@@ -44,13 +46,13 @@ function printUsage() {
   -h, --help             显示帮助
 
 工具 id:
-  claude     Claude Code(~/.claude/skills/)
-  opencode   OpenCode(~/.config/opencode/skills/)
-  gemini     Gemini CLI(~/.gemini/skills/)
-  copilot    GitHub Copilot(./.github/skills/)
-  cursor     Cursor(./.cursor/rules/<name>.md)
+  claude     Claude Code(~/.claude/skills/, ~/.claude/commands/)
+  opencode   OpenCode(~/.config/opencode/skills/, ~/.config/opencode/commands/)
+  gemini     Gemini CLI(~/.gemini/skills/, ~/.gemini/commands/)
+  copilot    GitHub Copilot(不自动安装;请维护 .github/ 下的显式配置)
+  cursor     Cursor(不自动安装;请维护 .cursor/ 下的显式配置)
   codex      Codex(~/.codex/skills/)
-  agents     .agents 别名(~/.agents/skills/ — 由 OpenCode 与 Gemini CLI 共享)
+  agents     .agents 别名(~/.agents/skills/, ~/.agents/commands/ — 由 OpenCode 与 Gemini CLI 共享)
 
 示例:
   node scripts/install.js                           交互式
@@ -203,11 +205,7 @@ async function main() {
 
   ok(`发现 ${skills.length} 个 skill:`);
   for (const skill of skills) {
-    if (skill.command) {
-      console.log(`    - ${colors.bold}${skill.name}${colors.reset} (${skill.category}/, command: enabled)`);
-    } else {
-      console.log(`    - ${colors.bold}${skill.name}${colors.reset} (${skill.category}/)`);
-    }
+    console.log(`    - ${colors.bold}${skill.name}${colors.reset} (${skill.category}/)`);
   }
 
   hdr("Step 2/4 — 检测已安装工具");
@@ -295,12 +293,19 @@ async function main() {
     const targetDir = getTargetDir(toolId);
     const display = getDisplayName(toolId);
     const commandsDir = getCommandsDir(toolId);
+    const commandSourceDir = getCommandSourceDir(toolId);
+    const commandFiles = scanCommandFiles(commandSourceDir);
     console.log("");
     info(`[${display}] 目标: ${targetDir}/`);
-    if (commandsDir) {
-      info(`  commands 派生: ${commandsDir}/`);
+    if (!targetDir) {
+      warn("  未配置自动 skills 安装目标,跳过");
+      continue;
+    }
+    if (commandsDir && commandSourceDir) {
+      info(`  commands 源: ${commandSourceDir}/ -> ${commandsDir}/ (${commandFiles.length} 个)`);
     }
 
+    let canInstallSkills = true;
     if (!dirExists(targetDir)) {
       if (isRepoLocalDir(targetDir)) {
         if (dryRun) {
@@ -310,24 +315,41 @@ async function main() {
           ok(`  已创建父目录: ${targetDir}`);
         }
       } else {
-        warn("  父目录不存在,跳过(若需要请先运行一次对应工具让自动创建)");
+        warn("  skills 父目录不存在,跳过 skills 安装(若需要请先运行一次对应工具让自动创建)");
         counters.skipped += 1;
-        continue;
+        canInstallSkills = false;
       }
     }
 
-    for (const skill of skills) {
-      const linkSource = getSkillLinkSource(toolId, skill.sourceDir);
-      const linkPath = getSkillLinkPath(toolId, targetDir, skill.name);
-      createLink(linkSource, linkPath, skill.name, skill.category, counters);
+    if (canInstallSkills) {
+      for (const skill of skills) {
+        const linkSource = getSkillLinkSource(toolId, skill.sourceDir);
+        const linkPath = getSkillLinkPath(toolId, targetDir, skill.name);
+        createLink(linkSource, linkPath, skill.name, skill.category, counters);
+      }
+    }
 
-      if (skill.command && commandsDir) {
-        if (dirExists(commandsDir)) {
-          createLink(path.join(skill.sourceDir, "SKILL.md"), path.join(commandsDir, `${skill.name}.md`), `${skill.name}.md (cmd)`, skill.category, counters);
+    if (commandsDir && commandSourceDir && commandFiles.length > 0) {
+      if (!dirExists(commandsDir)) {
+        if (isRepoLocalDir(commandsDir)) {
+          if (dryRun) {
+            console.log(`  [DRY] mkdir -p '${commandsDir}'`);
+          } else {
+            fs.mkdirSync(commandsDir, { recursive: true });
+            ok(`  已创建 commands 父目录: ${commandsDir}`);
+          }
         } else {
-          warn(`  - ${skill.name}.md (commands 父目录 ${commandsDir} 不存在,跳过)`);
-          counters.skipped += 1;
+          if (dryRun) {
+            console.log(`  [DRY] mkdir -p '${commandsDir}'`);
+          } else {
+            fs.mkdirSync(commandsDir, { recursive: true });
+            ok(`  已创建 commands 父目录: ${commandsDir}`);
+          }
         }
+      }
+
+      for (const commandFile of commandFiles) {
+        createLink(commandFile.source, path.join(commandsDir, commandFile.name), `${commandFile.name} (cmd)`, "commands", counters);
       }
     }
   }

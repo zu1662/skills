@@ -1,10 +1,11 @@
 # my-skills
 
-个人 Agent Skills 仓库,统一托管在 `skills/` 目录,参考 [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) 的多工具支持方式,通过软链同步到 Claude Code / OpenCode / Gemini CLI / GitHub Copilot / Cursor / Codex 等工具,实现「一处更新、多处生效」。
+个人 Agent Skills 仓库,参考 [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) 的多工具支持方式,把通用业务 skill 放在 `skills/`,把各 AI 工具的特殊配置放在各自目录(`.claude/`、`.gemini/`、`.opencode/`、`commands/` 等),再通过软链同步到 Claude Code / OpenCode / Gemini CLI / GitHub Copilot / Cursor / Codex 等工具。
 
 ## 设计目标
 
-- **单一真理源**:所有 skill 的源文件只放在本仓库的 `skills/` 下
+- **业务单一真理源**:只涉及业务流程的 skill 源文件放在 `skills/` 下
+- **工具配置隔离**:slash command、工具专属 frontmatter、TOML prompt 等维护在各工具自己的目录里
 - **多工具通用**:遵循 [Agent Skills](https://agentskills.io) 开源标准,按各工具原生发现目录安装
 - **零冲突**:install/uninstall 脚本自动检测已安装工具,交互式选择目标
 - **安全可逆**:所有操作通过软链实现,可一键卸载,不会污染目标目录
@@ -40,7 +41,14 @@ my-skills/
 │   ├── install.js                  创建软链
 │   ├── uninstall.js                删除软链
 │   └── verify.js                   验证可达性
-└── skills/                         ⭐ 单一真理源
+├── .claude/
+│   └── commands/                   Claude Code markdown slash commands
+├── .gemini/
+│   └── commands/                   Gemini CLI TOML slash commands
+├── .opencode/
+│   └── commands/                   OpenCode TOML slash commands
+├── commands/                       通用/Antigravity 风格 TOML slash commands
+└── skills/                         ⭐ 业务 skill 单一真理源
     └── <category>/                 按类型组织,如 dev/、productivity/、research/
         └── <skill-name>/           skill 名称必须全局唯一
             ├── SKILL.md            必填,frontmatter 用 name + description 最小集
@@ -62,58 +70,51 @@ my-skills/
 3. 重新执行 `node scripts/install.js` 创建软链
 4. 执行 `node scripts/verify.js` 确认所有工具可识别
 
-> **frontmatter 兼容说明**:Claude Code 支持大量可选字段(`allowed-tools`、`disable-model-invocation`、`context: fork` 等),OpenCode / Gemini CLI / GitHub Copilot / Codex 主要依赖 `name` 与 `description`,多余字段通常被忽略。Cursor rules 会直接读取 `SKILL.md` 的 markdown 内容。
+> **frontmatter 兼容说明**:`SKILL.md` 尽量只保留通用字段(`name`、`description`)。Claude Code 的 `allowed-tools`、`disable-model-invocation`、`argument-hint` 等专属字段应写入 `.claude/commands/<name>.md`;Gemini/OpenCode 的 slash command prompt 应写入对应 TOML。
 
-## command 派生(Claude Code markdown commands)
+## 工具专属 command 配置
 
-Claude Code 把 `skills/` 目录里的 SKILL.md 视为可加载技能,也支持 `commands/<name>.md` 形式的 slash command。参考项目里 Gemini CLI 的 slash commands 使用 `.gemini/commands/<name>.toml`,这不是 markdown,无法安全地从单个 `SKILL.md` 直接软链派生。
+`skills/` 下只维护业务 skill。任何只服务某个工具的入口配置,都放在对应工具目录里,install.js 会按目录原样软链到目标 commands 目录。
 
-解决办法:在 SKILL.md frontmatter 加 `command: true`,install.js 会**额外**在支持 markdown commands 的工具目录建一条软链,指向同一份 `SKILL.md`:
+以 `teach-me` 为例:
 
-```yaml
----
-name: teach-me
-description: ...
-command: true        # ← 加这一行,表示「我要被派生为 command」
----
-```
-
-| 工具 | 是否派生 command | 派生路径 |
+| 源文件 | 安装目标 | 格式 |
 |---|---|---|
-| Claude Code | ✅ | `~/.claude/commands/<name>.md` → `SKILL.md` |
-| OpenCode | ❌ 跳过 | 参考项目推荐通过 `AGENTS.md` + skill 工具做意图路由,不强制 slash commands |
-| Gemini CLI | ❌ 跳过 | Gemini 的 commands 是 TOML,需要 `.gemini/commands/<name>.toml` 原生命令 |
-| GitHub Copilot | ❌ 跳过 | 使用 `.github/skills/` 或 `.github/copilot-instructions.md` |
-| Cursor | ❌ 跳过 | 使用 `.cursor/rules/<name>.md` |
-| Codex | ❌ 不支持 | Codex 无 commands 机制 |
+| `.claude/commands/teach-me.md` | `~/.claude/commands/teach-me.md` | Claude Code markdown command |
+| `.gemini/commands/teach-me.toml` | `~/.gemini/commands/teach-me.toml` | Gemini CLI TOML command |
+| `.opencode/commands/teach-me.toml` | `~/.config/opencode/commands/teach-me.toml` | OpenCode TOML command |
+| `commands/teach-me.toml` | `~/.agents/commands/teach-me.toml` | 通用/共享 TOML command |
 
-- 不加 `command: true` 的 skill,只装到 skills/rules 目录,不会污染 `commands/` 目录
-- `command: false` 显式不派生(缺省即为 false)
-- 软链复用同一份 `SKILL.md`;需要 Gemini TOML command 或 Windsurf 合并规则时,请按对应工具原生格式单独维护
+新增 command 时:
+
+1. 保持 `skills/<category>/<skill-name>/SKILL.md` 为通用业务说明
+2. 在需要支持 slash command 的工具目录新增原生格式文件
+3. 运行 `node scripts/install.js` 安装软链
+4. 运行 `node scripts/verify.js` 检查 command 源文件是否已安装
 
 ## 软链目标说明
 
-| 工具 | skills/rules 软链目标 | commands 软链目标(若 `command: true`) |
+| 工具 | skills/rules 软链目标 | commands 软链目标 |
 |---|---|---|
 | Claude Code | `~/.claude/skills/<name>` | `~/.claude/commands/<name>.md` |
-| OpenCode(native) | `~/.config/opencode/skills/<name>` | — |
-| Gemini CLI(native) | `~/.gemini/skills/<name>` | — |
-| GitHub Copilot(project) | `.github/skills/<name>` | — |
-| Cursor(project) | `.cursor/rules/<name>.md` → `SKILL.md` | — |
+| OpenCode(native) | `~/.config/opencode/skills/<name>` | `~/.config/opencode/commands/<name>.toml` |
+| Gemini CLI(native) | `~/.gemini/skills/<name>` | `~/.gemini/commands/<name>.toml` |
+| GitHub Copilot(project) | 不自动派生 | — |
+| Cursor(project) | 不自动派生 | — |
 | Codex | `~/.codex/skills/<name>` | — |
-| `.agents/` 通用别名 | `~/.agents/skills/<name>` | — |
+| `.agents/` 通用别名 | `~/.agents/skills/<name>` | `~/.agents/commands/<name>.toml` |
 
-> `~/.agents/skills/` 可作为 OpenCode 与 Gemini CLI 共享的通用别名;Gemini CLI 也支持原生 `~/.gemini/skills/`。
+> `~/.agents/skills/` 与 `~/.agents/commands/` 可作为共享通用别名;Gemini CLI 也支持原生 `~/.gemini/skills/` 与 `.gemini/commands/`。
 
 ## 兼容性矩阵
 
 | 工具 | skills/rules 路径 | commands 路径 | 支持方式 | 备注 |
 |---|---|---|---|---|
-| Claude Code | `~/.claude/skills/<name>/SKILL.md` | `~/.claude/commands/<name>.md` | 原生 skills + markdown commands | `command: true` 时派生 command |
-| OpenCode | `~/.config/opencode/skills/<name>/SKILL.md` | — | 原生/兼容 skills | 参考项目建议配合 `AGENTS.md` 自动选 skill |
-| Gemini CLI | `~/.gemini/skills/<name>/SKILL.md` 或 `~/.agents/skills/<name>/SKILL.md` | `.gemini/commands/<name>.toml` | 原生 skills | TOML commands 需单独维护 |
-| GitHub Copilot | `.github/skills/<name>/SKILL.md` | — | 项目级 skills | 也可配合 `.github/copilot-instructions.md` 与 `.github/agents/*.agent.md` |
-| Cursor | `.cursor/rules/<name>.md` | — | 项目 rules | 每个 rule 软链到对应 `SKILL.md` |
+| Claude Code | `~/.claude/skills/<name>/SKILL.md` | `~/.claude/commands/<name>.md` | 原生 skills + markdown commands | command 文件维护在 `.claude/commands/` |
+| OpenCode | `~/.config/opencode/skills/<name>/SKILL.md` | `~/.config/opencode/commands/<name>.toml` | 原生/兼容 skills + TOML commands | command 文件维护在 `.opencode/commands/` |
+| Gemini CLI | `~/.gemini/skills/<name>/SKILL.md` 或 `~/.agents/skills/<name>/SKILL.md` | `~/.gemini/commands/<name>.toml` | 原生 skills + TOML commands | command 文件维护在 `.gemini/commands/` |
+| GitHub Copilot | 不通过 install.js 自动安装 | — | 项目级显式配置 | 如需支持,手工维护 `.github/copilot-instructions.md`、`.github/agents/*.agent.md` 等 |
+| Cursor | 不通过 install.js 自动安装 | — | 项目 rules | 如需支持,手工维护 `.cursor/rules/` 中的规则文件 |
 | Windsurf | `.windsurfrules` | — | 合并规则文件 | 不适合逐 skill 软链,建议手工合并 2-3 个常用 skill |
 | Codex | `~/.codex/skills/<name>/SKILL.md` | — | skills 目录 | 保持极简 frontmatter |
 

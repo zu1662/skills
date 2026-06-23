@@ -9,6 +9,7 @@ const { spawnSync } = require("node:child_process");
 const commonDir = __dirname;
 const repoRoot = path.resolve(commonDir, "..", "..");
 const skillsDir = path.join(repoRoot, "skills");
+const rootCommandsDir = path.join(repoRoot, "commands");
 const homeDir = os.homedir();
 const isWindows = process.platform === "win32";
 
@@ -37,34 +38,39 @@ const toolsRegistry = [
     cli: "claude",
     skillsDir: path.join(homeDir, ".claude", "skills"),
     commandsDir: path.join(homeDir, ".claude", "commands"),
+    commandSourceDir: path.join(repoRoot, ".claude", "commands"),
   },
   {
     id: "opencode",
     display: "OpenCode",
     cli: "opencode",
     skillsDir: path.join(homeDir, ".config", "opencode", "skills"),
-    commandsDir: "",
+    commandsDir: path.join(homeDir, ".config", "opencode", "commands"),
+    commandSourceDir: path.join(repoRoot, ".opencode", "commands"),
   },
   {
     id: "gemini",
     display: "Gemini CLI",
     cli: "gemini",
     skillsDir: path.join(homeDir, ".gemini", "skills"),
-    commandsDir: "",
+    commandsDir: path.join(homeDir, ".gemini", "commands"),
+    commandSourceDir: path.join(repoRoot, ".gemini", "commands"),
   },
   {
     id: "copilot",
     display: "GitHub Copilot",
     cli: "-",
-    skillsDir: path.join(repoRoot, ".github", "skills"),
+    skillsDir: "",
     commandsDir: "",
+    commandSourceDir: "",
   },
   {
     id: "cursor",
     display: "Cursor",
     cli: "-",
-    skillsDir: path.join(repoRoot, ".cursor", "rules"),
+    skillsDir: "",
     commandsDir: "",
+    commandSourceDir: "",
   },
   {
     id: "codex",
@@ -72,13 +78,15 @@ const toolsRegistry = [
     cli: "codex",
     skillsDir: path.join(homeDir, ".codex", "skills"),
     commandsDir: "",
+    commandSourceDir: "",
   },
   {
     id: "agents",
     display: ".agents (OpenCode+Gemini CLI 共享)",
     cli: "-",
     skillsDir: path.join(homeDir, ".agents", "skills"),
-    commandsDir: "",
+    commandsDir: path.join(homeDir, ".agents", "commands"),
+    commandSourceDir: rootCommandsDir,
   },
 ];
 
@@ -149,7 +157,7 @@ function detectTool(toolId) {
     return true;
   }
 
-  if (["agents", "copilot", "cursor"].includes(toolId)) {
+  if (toolId === "agents") {
     return dirExists(homeDir);
   }
 
@@ -170,6 +178,14 @@ function getCommandsDir(toolId) {
     throw new Error(`未知工具 id: ${toolId}`);
   }
   return tool.commandsDir;
+}
+
+function getCommandSourceDir(toolId) {
+  const tool = getTool(toolId);
+  if (!tool) {
+    throw new Error(`未知工具 id: ${toolId}`);
+  }
+  return tool.commandSourceDir;
 }
 
 function getDisplayName(toolId) {
@@ -269,8 +285,6 @@ function scanSkills() {
       const rel = path.relative(skillsDir, sourceDir).split(path.sep).join("/");
       const content = fs.readFileSync(skillMd, "utf8");
       const fmName = parseFrontmatterField(content, "name");
-      const fmCommand = parseFrontmatterField(content, "command").toLowerCase();
-      const commandFlag = fmCommand === "true";
 
       if (fmName && fmName !== name) {
         errors.push(
@@ -287,12 +301,26 @@ function scanSkills() {
         name,
         category,
         sourceDir,
-        command: commandFlag,
       });
     }
   }
 
   return { skills, errors };
+}
+
+function scanCommandFiles(sourceDir) {
+  if (!sourceDir || !dirExists(sourceDir)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(sourceDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() || entry.isSymbolicLink())
+    .map((entry) => ({
+      name: entry.name,
+      source: path.join(sourceDir, entry.name),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function resolveLinkTarget(linkPath, linkTarget) {
@@ -461,13 +489,16 @@ module.exports = {
   colors,
   repoRoot,
   skillsDir,
+  rootCommandsDir,
   toolsRegistry,
   getRepoRoot,
   scanSkills,
+  scanCommandFiles,
   detectTool,
   getTool,
   getTargetDir,
   getCommandsDir,
+  getCommandSourceDir,
   getDisplayName,
   getSkillLinkPath,
   getSkillLinkSource,

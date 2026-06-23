@@ -88,20 +88,7 @@ description: 一句话描述触发场景,≤1024 字符
 ---
 ```
 
-**可选(仅 Claude Code 识别,其他工具静默忽略)**:
-
-```yaml
----
-name: my-skill
-description: ...
-license: MIT
-argument-hint: "[issue-number]"
-disable-model-invocation: true   # 只能用户手动触发
-user-invocable: true             # 是否出现在 / 菜单
-allowed-tools: Read Grep         # 预授权工具
-context: fork                    # 在子 agent 中执行
----
-```
+`SKILL.md` 只放通用业务说明。`argument-hint`、`disable-model-invocation`、`user-invocable`、`allowed-tools`、`context` 等工具专属字段,维护在仓库根目录下对应工具配置中,例如 `.claude/commands/<name>.md`、`.gemini/commands/<name>.toml`、`.opencode/commands/<name>.toml` 或 `commands/<name>.toml`。
 
 **trigger 写法**(description 中的最佳实践):
 

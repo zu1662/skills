@@ -1,9 +1,6 @@
 ---
 name: wiki-fetcher
 description: '从企业内部 Wiki 页面抓取文档内容并整理为 Markdown。用于用户提供内部 wiki 链接、需要完成 OAuth 登录、提取 id="tiptap" 编辑器内容、下载或保留图片链接、输出美观 Markdown，并补充核心内容摘要时。触发词包括 wiki 抓取、wiki 提取、内部文档转 markdown、OAuth 登录后读取页面内容。'
-argument-hint: '提供一个企业内部 Wiki 链接，或说明要抓取并整理的 Wiki 文档。'
-user-invocable: true
-disable-model-invocation: false
 ---
 
 # Wiki Fetcher

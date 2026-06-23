@@ -8,7 +8,9 @@ const {
   toolsRegistry,
   getRepoRoot,
   scanSkills,
+  scanCommandFiles,
   getSkillLinkPath,
+  getCommandSourceDir,
   checkLinkStatus,
   listInstalledLinks,
   removeLink,
@@ -147,19 +149,41 @@ async function main() {
   console.log("");
   ok(`仓库内发现 ${skills.length} 个 skill:`);
   for (const skill of skills) {
-    if (skill.command) {
-      console.log(`    - ${colors.bold}${skill.name}${colors.reset} (${skill.category}/, command: enabled)`);
-    } else {
-      console.log(`    - ${colors.bold}${skill.name}${colors.reset} (${skill.category}/)`);
+    console.log(`    - ${colors.bold}${skill.name}${colors.reset} (${skill.category}/)`);
+  }
+
+  const commandFilesByTool = new Map();
+  const commandReach = new Map();
+  for (const tool of toolsRegistry) {
+    const commandFiles = scanCommandFiles(getCommandSourceDir(tool.id));
+    commandFilesByTool.set(tool.id, commandFiles);
+    for (const commandFile of commandFiles) {
+      const key = `${tool.id}:${commandFile.name}`;
+      commandReach.set(key, {
+        toolId: tool.id,
+        name: commandFile.name,
+        reachable: false,
+      });
     }
   }
 
   hdr("工具级软链状态");
   for (const tool of toolsRegistry) {
+    if (!tool.skillsDir && !tool.commandsDir) {
+      continue;
+    }
+
     console.log("");
     info(`[${tool.display}]`);
     printDirLinks("skills", tool.skillsDir);
     printDirLinks("commands", tool.commandsDir);
+    const commandFiles = commandFilesByTool.get(tool.id) || [];
+    if (commandFiles.length > 0) {
+      info(`  command 源文件: ${commandFiles.length} 个 (${getCommandSourceDir(tool.id)})`);
+      for (const commandFile of commandFiles) {
+        console.log(`        - ${commandFile.name}`);
+      }
+    }
     runCliList(tool.id);
   }
 
@@ -167,13 +191,15 @@ async function main() {
   const reach = new Map();
   for (const skill of skills) {
     reach.set(skill.name, {
-      command: skill.command,
       skillReachable: false,
-      commandReachable: false,
     });
   }
 
   for (const tool of toolsRegistry) {
+    if (!tool.skillsDir) {
+      continue;
+    }
+
     if (!dirExists(tool.skillsDir)) {
       continue;
     }
@@ -191,27 +217,37 @@ async function main() {
       continue;
     }
 
-    for (const linkName of listInstalledLinks(tool.commandsDir)) {
-      const base = linkName.endsWith(".md") ? linkName.slice(0, -3) : linkName;
-      const item = reach.get(base);
-      if (item && item.command) {
-        item.commandReachable = true;
+    for (const commandFile of commandFilesByTool.get(tool.id) || []) {
+      const key = `${tool.id}:${commandFile.name}`;
+      const item = commandReach.get(key);
+      if (!item) {
+        continue;
+      }
+
+      if (checkLinkStatus(path.join(tool.commandsDir, commandFile.name)) === 1) {
+        item.reachable = true;
       }
     }
   }
 
   let unreachable = 0;
-  let commandUnreachable = 0;
   for (const skill of skills) {
     const item = reach.get(skill.name);
     if (!item.skillReachable) {
       warn(`  x ${skill.name} (无任何工具可访问 — 请运行 node scripts/install.js)`);
       unreachable += 1;
-    } else if (item.command && !item.commandReachable) {
-      warn(`  △ ${skill.name} (command: true,但未在任何工具的 commands/ 派生)`);
-      commandUnreachable += 1;
     } else {
       ok(`  ✓ ${skill.name}`);
+    }
+  }
+
+  let commandUnreachable = 0;
+  for (const command of commandReach.values()) {
+    if (!command.reachable) {
+      warn(`  △ ${command.name} (${command.toolId} command 未安装 — 请运行 node scripts/install.js)`);
+      commandUnreachable += 1;
+    } else {
+      ok(`  ✓ ${command.name} (${command.toolId} command)`);
     }
   }
 
@@ -223,7 +259,7 @@ async function main() {
   }
 
   if (commandUnreachable > 0) {
-    warn(`${commandUnreachable} 个标记 command: true 的 skill 尚未派生到 commands/,建议重跑 node scripts/install.js`);
+    warn(`${commandUnreachable} 个 command 源文件尚未安装到目标 commands/,建议重跑 node scripts/install.js`);
   }
 
   if (brokenLinks.length === 0) {
