@@ -7,7 +7,10 @@ const {
   getRepoRoot,
   getTargetDir,
   getCommandsDir,
+  getCommandSourceDir,
   getDisplayName,
+  scanCommandFiles,
+  uninstallOpencodeCommands,
   checkLinkStatus,
   listInstalledLinks,
   removeLink,
@@ -218,6 +221,28 @@ async function main() {
           counters.removed += 1;
         } catch (error) {
           err(`  x ${linkPath} (删除失败: ${error.message})`);
+          counters.failed += 1;
+        }
+      }
+    }
+
+    if (toolId === "opencode") {
+      const commandFiles = scanCommandFiles(getCommandSourceDir(toolId));
+      if (commandFiles.length > 0) {
+        try {
+          const result = uninstallOpencodeCommands(commandFiles, { dryRun });
+          info(`  OpenCode commands 配置: ${result.configPath}`);
+          for (const item of result.results) {
+            if (item.status === "removed") {
+              ok(`  - /${item.name} (cmd, ${item.message})`);
+              counters.removed += 1;
+            } else {
+              warn(`  - /${item.name} (cmd, ${item.message})`);
+              counters.skipped += 1;
+            }
+          }
+        } catch (error) {
+          err(`  x OpenCode commands 清理失败: ${error.message}`);
           counters.failed += 1;
         }
       }

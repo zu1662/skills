@@ -9,6 +9,8 @@ const {
   getRepoRoot,
   scanSkills,
   scanCommandFiles,
+  listManagedOpencodeCommands,
+  hasOpencodeCommand,
   getSkillLinkPath,
   getCommandSourceDir,
   checkLinkStatus,
@@ -95,6 +97,25 @@ function printDirLinks(label, dir) {
   }
 }
 
+function printOpencodeCommands(commandFiles) {
+  if (commandFiles.length === 0) {
+    return;
+  }
+
+  console.log("");
+  info("  [commands] ~/.config/opencode/opencode.json");
+  const managedCommands = listManagedOpencodeCommands();
+  if (managedCommands.length === 0) {
+    warn("    未发现本项目管理的 OpenCode command");
+    return;
+  }
+
+  ok(`    本项目 command: ${managedCommands.length} 个`);
+  for (const command of managedCommands) {
+    console.log(`        ${colors.green}✓${colors.reset} /${command.name} <- ${command.sourceName}`);
+  }
+}
+
 function runCliList(toolId) {
   if (toolId !== "claude") {
     return;
@@ -176,7 +197,11 @@ async function main() {
     console.log("");
     info(`[${tool.display}]`);
     printDirLinks("skills", tool.skillsDir);
-    printDirLinks("commands", tool.commandsDir);
+    if (tool.id === "opencode") {
+      printOpencodeCommands(commandFilesByTool.get(tool.id) || []);
+    } else {
+      printDirLinks("commands", tool.commandsDir);
+    }
     const commandFiles = commandFilesByTool.get(tool.id) || [];
     if (commandFiles.length > 0) {
       info(`  command 源文件: ${commandFiles.length} 个 (${getCommandSourceDir(tool.id)})`);
@@ -213,6 +238,18 @@ async function main() {
   }
 
   for (const tool of toolsRegistry) {
+    if (tool.id === "opencode") {
+      for (const commandFile of commandFilesByTool.get(tool.id) || []) {
+        const key = `${tool.id}:${commandFile.name}`;
+        const item = commandReach.get(key);
+        if (!item) {
+          continue;
+        }
+        item.reachable = hasOpencodeCommand(commandFile);
+      }
+      continue;
+    }
+
     if (!tool.commandsDir || !dirExists(tool.commandsDir)) {
       continue;
     }
@@ -259,7 +296,7 @@ async function main() {
   }
 
   if (commandUnreachable > 0) {
-    warn(`${commandUnreachable} 个 command 源文件尚未安装到目标 commands/,建议重跑 node scripts/install.js`);
+    warn(`${commandUnreachable} 个 command 源文件尚未在对应工具中生效,建议按需运行 node scripts/install.js --tools <tool>`);
   }
 
   if (brokenLinks.length === 0) {

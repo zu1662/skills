@@ -288,6 +288,279 @@ function scanCommandFiles(sourceDir) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function commandNameFromFile(filename) {
+  return filename.replace(/\.(md|toml)$/i, "");
+}
+
+function parseTomlString(content, key) {
+  const multilinePattern = new RegExp(`^${key}\\s*=\\s*"""\\r?\\n?([\\s\\S]*?)\\r?\\n?"""\\s*$`, "m");
+  const multilineMatch = content.match(multilinePattern);
+  if (multilineMatch) {
+    return multilineMatch[1];
+  }
+
+  const quotedPattern = new RegExp(`^${key}\\s*=\\s*"((?:[^"\\\\]|\\\\.)*)"\\s*$`, "m");
+  const quotedMatch = content.match(quotedPattern);
+  if (!quotedMatch) {
+    return "";
+  }
+
+  return quotedMatch[1]
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t")
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\");
+}
+
+function readCommandDefinition(commandFile) {
+  const content = fs.readFileSync(commandFile.source, "utf8");
+  const ext = path.extname(commandFile.name).toLowerCase();
+  const name = commandNameFromFile(commandFile.name);
+
+  if (ext === ".toml") {
+    const description = parseTomlString(content, "description");
+    const template = parseTomlString(content, "prompt") || parseTomlString(content, "template");
+    return {
+      name,
+      sourceName: commandFile.name,
+      source: commandFile.source,
+      description,
+      template,
+    };
+  }
+
+  if (ext === ".md") {
+    const description = parseFrontmatterField(content, "description");
+    const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "").trim();
+    return {
+      name,
+      sourceName: commandFile.name,
+      source: commandFile.source,
+      description,
+      template: body,
+    };
+  }
+
+  return {
+    name,
+    sourceName: commandFile.name,
+    source: commandFile.source,
+    description: "",
+    template: content.trim(),
+  };
+}
+
+function getOpencodeConfigPath() {
+  const tool = getTool("opencode");
+  return path.join(path.dirname(tool.skillsDir), "opencode.json");
+}
+
+function getOpencodeCommandRegistryPath() {
+  return path.join(path.dirname(getOpencodeConfigPath()), ".my-skills-commands.json");
+}
+
+function readJsonFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+
+  const content = fs.readFileSync(filePath, "utf8").trim();
+  if (!content) {
+    return {};
+  }
+
+  return JSON.parse(content);
+}
+
+function writeJsonFile(filePath, data) {
+  fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`);
+}
+
+function readOpencodeCommandRegistry() {
+  const registryPath = getOpencodeCommandRegistryPath();
+  try {
+    const registry = readJsonFile(registryPath);
+    return registry.commands && typeof registry.commands === "object" ? registry.commands : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeOpencodeCommandRegistry(commands) {
+  writeJsonFile(getOpencodeCommandRegistryPath(), { commands });
+}
+
+function isLegacyManagedOpencodeCommand(commandConfig, sourceName) {
+  return Boolean(commandConfig && commandConfig["x-my-skills-source"] === sourceName);
+}
+
+function removeInternalCommandFields(commandConfig) {
+  if (!commandConfig || typeof commandConfig !== "object") {
+    return commandConfig;
+  }
+
+  const next = { ...commandConfig };
+  delete next["x-my-skills-source"];
+  return next;
+}
+
+function installOpencodeCommands(commandFiles, options = {}) {
+  const dryRun = Boolean(options.dryRun);
+  const configPath = getOpencodeConfigPath();
+  const config = readJsonFile(configPath);
+  const currentCommands = config.command && typeof config.command === "object" ? config.command : {};
+  const nextCommands = { ...currentCommands };
+  const registry = readOpencodeCommandRegistry();
+  const nextRegistry = { ...registry };
+  const results = [];
+
+  for (const commandFile of commandFiles) {
+    const definition = readCommandDefinition(commandFile);
+    if (!definition.template) {
+      results.push({
+        name: definition.name,
+        status: "failed",
+        message: "缺少 template/prompt 内容",
+      });
+      continue;
+    }
+
+    const existing = nextCommands[definition.name];
+    const isManaged = registry[definition.name] === definition.sourceName || isLegacyManagedOpencodeCommand(existing, definition.sourceName);
+    if (existing && !isManaged) {
+      results.push({
+        name: definition.name,
+        status: "skipped",
+        message: "opencode.json 中存在同名非本项目 command",
+      });
+      continue;
+    }
+
+    const commandConfig = {
+      template: definition.template,
+    };
+    if (definition.description) {
+      commandConfig.description = definition.description;
+    }
+
+    const normalizedExisting = removeInternalCommandFields(existing || null);
+    const unchanged = JSON.stringify(normalizedExisting || null) === JSON.stringify(commandConfig) && registry[definition.name] === definition.sourceName;
+    nextCommands[definition.name] = commandConfig;
+    nextRegistry[definition.name] = definition.sourceName;
+    results.push({
+      name: definition.name,
+      status: unchanged ? "skipped" : "updated",
+      message: unchanged ? "已存在且内容一致" : "已写入 opencode.json",
+    });
+  }
+
+  const configChanged = JSON.stringify(currentCommands) !== JSON.stringify(nextCommands);
+  if (configChanged) {
+    config.command = nextCommands;
+    if (!dryRun) {
+      writeJsonFile(configPath, config);
+    }
+  }
+  const registryChanged = JSON.stringify(registry) !== JSON.stringify(nextRegistry);
+  if (registryChanged && !dryRun) {
+    writeOpencodeCommandRegistry(nextRegistry);
+  }
+
+  return {
+    configPath,
+    registryPath: getOpencodeCommandRegistryPath(),
+    changed: configChanged || registryChanged,
+    results,
+  };
+}
+
+function listManagedOpencodeCommands() {
+  const configPath = getOpencodeConfigPath();
+  const registry = readOpencodeCommandRegistry();
+  let config = {};
+  try {
+    config = readJsonFile(configPath);
+  } catch {
+    return [];
+  }
+
+  const commands = config.command && typeof config.command === "object" ? config.command : {};
+  return Object.entries(registry)
+    .filter(([name]) => Boolean(commands[name]))
+    .map(([name, sourceName]) => ({
+      name,
+      sourceName,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function hasOpencodeCommand(commandFile) {
+  const configPath = getOpencodeConfigPath();
+  let config = {};
+  try {
+    config = readJsonFile(configPath);
+  } catch {
+    return false;
+  }
+
+  const definition = readCommandDefinition(commandFile);
+  const commands = config.command && typeof config.command === "object" ? config.command : {};
+  const registry = readOpencodeCommandRegistry();
+  return Boolean(commands[definition.name] && registry[definition.name] === definition.sourceName);
+}
+
+function uninstallOpencodeCommands(commandFiles, options = {}) {
+  const dryRun = Boolean(options.dryRun);
+  const configPath = getOpencodeConfigPath();
+  const config = readJsonFile(configPath);
+  const commands = config.command && typeof config.command === "object" ? config.command : {};
+  const nextCommands = { ...commands };
+  const registry = readOpencodeCommandRegistry();
+  const nextRegistry = { ...registry };
+  const results = [];
+
+  for (const commandFile of commandFiles) {
+    const definition = readCommandDefinition(commandFile);
+    const existing = nextCommands[definition.name];
+    const isManaged = registry[definition.name] === definition.sourceName || isLegacyManagedOpencodeCommand(existing, definition.sourceName);
+    if (!isManaged) {
+      results.push({
+        name: definition.name,
+        status: "skipped",
+        message: "未发现本项目管理的 command",
+      });
+      continue;
+    }
+
+    delete nextCommands[definition.name];
+    delete nextRegistry[definition.name];
+    results.push({
+      name: definition.name,
+      status: "removed",
+      message: "已从 opencode.json 删除",
+    });
+  }
+
+  const changed = JSON.stringify(commands) !== JSON.stringify(nextCommands);
+  if (changed) {
+    config.command = nextCommands;
+    if (!dryRun) {
+      writeJsonFile(configPath, config);
+    }
+  }
+  const registryChanged = JSON.stringify(registry) !== JSON.stringify(nextRegistry);
+  if (registryChanged && !dryRun) {
+    writeOpencodeCommandRegistry(nextRegistry);
+  }
+
+  return {
+    configPath,
+    registryPath: getOpencodeCommandRegistryPath(),
+    changed: changed || registryChanged,
+    results,
+  };
+}
+
 function resolveLinkTarget(linkPath, linkTarget) {
   if (path.isAbsolute(linkTarget)) {
     return path.resolve(linkTarget);
@@ -458,6 +731,11 @@ module.exports = {
   getRepoRoot,
   scanSkills,
   scanCommandFiles,
+  readCommandDefinition,
+  installOpencodeCommands,
+  listManagedOpencodeCommands,
+  hasOpencodeCommand,
+  uninstallOpencodeCommands,
   detectTool,
   getTool,
   getTargetDir,

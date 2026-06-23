@@ -9,6 +9,7 @@ const {
   getRepoRoot,
   scanSkills,
   scanCommandFiles,
+  installOpencodeCommands,
   detectTool,
   getTool,
   getTargetDir,
@@ -324,6 +325,29 @@ async function main() {
         const linkPath = getSkillLinkPath(toolId, targetDir, skill.name);
         createLink(linkSource, linkPath, skill.name, skill.category, counters);
       }
+    }
+
+    if (toolId === "opencode" && commandFiles.length > 0) {
+      try {
+        const result = installOpencodeCommands(commandFiles, { dryRun });
+        info(`  OpenCode commands 配置: ${result.configPath}`);
+        for (const item of result.results) {
+          if (item.status === "updated") {
+            ok(`  + /${item.name} (cmd, ${item.message})`);
+            counters.created += 1;
+          } else if (item.status === "skipped") {
+            warn(`  - /${item.name} (cmd, ${item.message})`);
+            counters.skipped += 1;
+          } else {
+            err(`  x /${item.name} (cmd, ${item.message})`);
+            counters.failed += 1;
+          }
+        }
+      } catch (error) {
+        err(`  x OpenCode commands 写入失败: ${error.message}`);
+        counters.failed += 1;
+      }
+      continue;
     }
 
     if (commandsDir && commandSourceDir && commandFiles.length > 0) {
