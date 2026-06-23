@@ -11,6 +11,8 @@ description: 仅当用户通过 /brainstorm slash command 或明确写出"brains
 
 - 用户主动使用 `/brainstorm ...`
 - 用户明确要求 `使用 $brainstorming ...`
+- 用户明确使用 `brainstorm ...`
+- 用户明确使用 `brainstorming ...`
 
 不要在自然语言请求中自动启用本技能。即使用户使用了"脑暴""brainstorm""帮我想方案""我们讨论一下""先设计一下"等词,只要没有显式 command 或 `$brainstorming`,都不要触发。
 
