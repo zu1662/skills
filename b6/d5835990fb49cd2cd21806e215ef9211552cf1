@@ -1,0 +1,14 @@
+skills/productivity/brainstorming/SKILL.md
+  h_d8c66562a39f32 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "b6d5835990fb49cd2cd21806e215ef9211552cf1",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  }
+}
