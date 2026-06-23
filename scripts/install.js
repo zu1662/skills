@@ -212,13 +212,19 @@ async function main() {
     const detected = detectTool(tool.id);
     statusByTool.set(tool.id, detected);
     if (detected) {
-      ok(`  [✓] ${tool.display}`);
+      if (tool.autoInstall === false) {
+        info(`  [~] ${tool.display} (检测到,但不支持自动安装 — 需手动配置)`);
+      } else {
+        ok(`  [✓] ${tool.display}`);
+      }
     } else {
       console.log(`  [ ] ${colors.yellow}${tool.display}${colors.reset}`);
     }
   }
 
-  const availableTools = toolsRegistry.filter((tool) => statusByTool.get(tool.id)).map((tool) => tool.id);
+  const availableTools = toolsRegistry
+    .filter((tool) => statusByTool.get(tool.id) && tool.autoInstall !== false)
+    .map((tool) => tool.id);
   if (availableTools.length === 0) {
     warn("未检测到任何已安装的 AI 工具");
     info("请先安装至少一个工具(Claude Code / OpenCode / Codex / GitHub Copilot)");

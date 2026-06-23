@@ -27,6 +27,11 @@ node scripts/verify.js
 
 # 4. 卸载(从所有工具中移除本仓库的软链)
 node scripts/uninstall.js
+
+# 日常使用
+node scripts/sync.js        # 同步变更(install 的语义别名)
+node scripts/new-skill.js   # 交互式创建新 skill 脚手架
+npm test                    # 运行单元测试
 ```
 
 ## 目录结构
@@ -35,12 +40,17 @@ node scripts/uninstall.js
 my-skills/
 ├── README.md                       本文件
 ├── .gitignore                      排除运行时产物
+├── package.json                    npm 脚本入口(test/sync/verify 等)
 ├── scripts/
 │   ├── lib/
-│   │   └── common.js               跨平台公共函数(工具检测/软链校验/输入解析)
+│   │   ├── common.js               跨平台公共函数(工具检测/软链校验/输入解析)
+│   │   └── __tests__/
+│   │       └── common.test.js      纯函数单元测试
 │   ├── install.js                  创建软链
+│   ├── sync.js                     同步变更(install 的语义别名)
 │   ├── uninstall.js                删除软链
-│   └── verify.js                   验证可达性
+│   ├── verify.js                   验证可达性 + 一致性自检
+│   └── new-skill.js                交互式新建 skill 脚手架
 ├── .claude/
 │   └── commands/                   Claude Code markdown slash commands
 ├── .opencode/
@@ -55,6 +65,8 @@ my-skills/
 ```
 
 ## 添加新 skill 的流程
+
+> **快捷方式**:运行 `node scripts/new-skill.js` 自动完成步骤 1-2(交互式创建目录 + SKILL.md 模板)。
 
 1. 在 `skills/<category>/<skill-name>/` 下创建目录
 2. 编写 `SKILL.md`,frontmatter 至少包含:
@@ -102,7 +114,7 @@ my-skills/
 |---|---|---|---|---|
 | Claude Code | `~/.claude/skills/<name>/SKILL.md` | `~/.claude/commands/<name>.md` | 原生 skills + markdown commands | command 文件维护在 `.claude/commands/` |
 | OpenCode | `~/.config/opencode/skills/<name>/SKILL.md` | `~/.config/opencode/commands/<name>.toml` | 原生/兼容 skills + TOML commands | command 文件维护在 `.opencode/commands/` |
-| GitHub Copilot | 不通过 install.js 自动安装 | — | 项目级显式配置 | 如需支持,手工维护 `.github/copilot-instructions.md`、`.github/agents/*.agent.md` 等 |
+| GitHub Copilot | 不自动安装 (autoInstall: false) | — | 项目级显式配置 | 检测到但仍跳过;手工维护 `.github/copilot-instructions.md`、`.github/agents/*.agent.md` 等 |
 | Codex | `~/.codex/skills/<name>/SKILL.md` | — | skills 目录 | 保持极简 frontmatter |
 
 ## 命名规范

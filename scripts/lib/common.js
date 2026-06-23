@@ -54,6 +54,7 @@ const toolsRegistry = [
     skillsDir: "",
     commandsDir: "",
     commandSourceDir: "",
+    autoInstall: false,
   },
   {
     id: "codex",
@@ -207,15 +208,48 @@ function isRepoLocalDir(target) {
   return isPathInside(getRepoRoot(), target);
 }
 
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function unquoteYamlValue(value) {
+  const trimmed = value.trim();
+  if (trimmed.length >= 2) {
+    const first = trimmed[0];
+    const last = trimmed[trimmed.length - 1];
+    if (first === '"' && last === '"') {
+      return trimmed
+        .slice(1, -1)
+        .replace(/\\"/g, '"')
+        .replace(/\\n/g, "\n")
+        .replace(/\\t/g, "\t")
+        .replace(/\\\\/g, "\\");
+    }
+    if (first === "'" && last === "'") {
+      return trimmed.slice(1, -1).replace(/''/g, "'");
+    }
+  }
+  return trimmed;
+}
+
 function parseFrontmatterField(content, field) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) {
     return "";
   }
 
-  const pattern = new RegExp(`^${field}:\\s*(.*)$`, "im");
+  const escapedField = escapeRegExp(field);
+  const pattern = new RegExp(
+    `^${escapedField}:\\s*(.*)$`,
+    "im",
+  );
   const fieldMatch = match[1].match(pattern);
-  return fieldMatch ? fieldMatch[1].trim() : "";
+  if (!fieldMatch) {
+    return "";
+  }
+
+  const rawValue = fieldMatch[1];
+  return unquoteYamlValue(rawValue);
 }
 
 function scanSkills() {
@@ -754,6 +788,15 @@ module.exports = {
   interactiveSelect,
   confirm,
   formatWindowsSymlinkHint,
+  escapeRegExp,
+  unquoteYamlValue,
+  parseFrontmatterField,
+  isPathInside,
+  normalizeForCompare,
+  commandNameFromFile,
+  parseTomlString,
+  readOpencodeCommandRegistry,
+  readJsonFile,
   info,
   ok,
   warn,

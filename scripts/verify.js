@@ -11,8 +11,10 @@ const {
   scanCommandFiles,
   listManagedOpencodeCommands,
   hasOpencodeCommand,
+  readOpencodeCommandRegistry,
   getSkillLinkPath,
   getCommandSourceDir,
+  getCommandsDir,
   checkLinkStatus,
   listInstalledLinks,
   removeLink,
@@ -297,6 +299,77 @@ async function main() {
 
   if (commandUnreachable > 0) {
     warn(`${commandUnreachable} 个 command 源文件尚未在对应工具中生效,建议按需运行 node scripts/install.js --tools <tool>`);
+  }
+
+  // ── OpenCode registry 一致性自检 ──
+  hdr("OpenCode registry 一致性");
+  let registryIssues = 0;
+  try {
+    const registry = readOpencodeCommandRegistry();
+    const managedCommands = listManagedOpencodeCommands();
+    const registryNames = Object.keys(registry).sort();
+
+    for (const name of registryNames) {
+      if (!managedCommands.some((c) => c.name === name)) {
+        warn(`  x ${name} (registry 记录但 opencode.json 中已缺失 — 建议重新 install)`);
+        registryIssues += 1;
+      }
+    }
+
+    for (const cmd of managedCommands) {
+      if (!registry[cmd.name]) {
+        warn(`  x ${cmd.name} (opencode.json 中存在但 registry 未记录 — 可能手动添加,uninstall 会漏删)`);
+        registryIssues += 1;
+      }
+    }
+
+    if (registryIssues === 0) {
+      ok("registry 与 opencode.json 一致");
+    }
+  } catch {
+    info("  无法读取 OpenCode registry(可能未安装 OpenCode),跳过");
+  }
+
+  // ── 跨工具 command 覆盖校验 ──
+  hdr("跨工具 command 覆盖");
+  const allCommandNames = new Set();
+  const commandPresence = new Map();
+  for (const tool of toolsRegistry) {
+    const files = commandFilesByTool.get(tool.id) || [];
+    const names = new Set(files.map((f) => f.name.replace(/\.(md|toml)$/i, "")));
+    names.forEach((n) => allCommandNames.add(n));
+    commandPresence.set(tool.id, names);
+  }
+
+  let coverageIssues = 0;
+  for (const cmdName of [...allCommandNames].sort()) {
+    const presentIn = toolsRegistry
+      .filter((t) => commandPresence.get(t.id)?.has(cmdName))
+      .map((t) => t.id);
+
+    if (presentIn.length <= 1) {
+      ok(`  ✓ ${cmdName} (仅 ${presentIn.join(",") || "无"} — 单工具 command)`);
+      continue;
+    }
+
+    const missing = toolsRegistry
+      .filter((t) => t.commandSourceDir && !commandPresence.get(t.id)?.has(cmdName))
+      .map((t) => t.id);
+
+    if (missing.length > 0) {
+      warn(`  △ ${cmdName} (已有: ${presentIn.join(",")}, 缺失: ${missing.join(",")})`);
+      coverageIssues += 1;
+    } else {
+      ok(`  ✓ ${cmdName} (所有支持 command 的工具均已覆盖)`);
+    }
+  }
+
+  if (coverageIssues > 0) {
+    warn(`${coverageIssues} 个 command 在部分工具中缺失,建议补充对应工具目录的 command 文件`);
+  } else if (allCommandNames.size === 0) {
+    info("  未发现任何 command 文件");
+  } else {
+    ok("所有 command 覆盖一致");
   }
 
   if (brokenLinks.length === 0) {
