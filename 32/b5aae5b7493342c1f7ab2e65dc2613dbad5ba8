@@ -1,0 +1,23 @@
+skills/productivity/multi-search-engine/references/international-search.md
+  s_0c89502e63dd9e::t_6db64963ed0836 1-398
+skills/productivity/multi-search-engine/references/advanced-search.md
+  s_0c89502e63dd9e::t_6db64963ed0836 1-146
+skills/productivity/multi-search-engine/SKILL.md
+  s_0c89502e63dd9e::t_1064eca6bacb8f 1-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "32b5aae5b7493342c1f7ab2e65dc2613dbad5ba8",
+  "prompts": {},
+  "sessions": {
+    "s_0c89502e63dd9e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ef310-036b-7233-a5ff-287c09a7ebd4",
+        "model": "gpt-5.5"
+      },
+      "human_author": "huazi <huazi@local>"
+    }
+  }
+}
