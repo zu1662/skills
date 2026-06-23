@@ -1,0 +1,52 @@
+.opencode/commands/teach-me.toml
+  s_d31c534662a7a4::t_c9438e4687547a 1-7
+skills/tcwith/test-report-creater/SKILL.md
+  h_d8c66562a39f32 1-225
+README.md
+  s_d31c534662a7a4::t_4945fb653c393f 102-103,116-117
+  s_d31c534662a7a4::t_e33d23a3dfa350 3,7-8,44-51,73,75,77,79,81,83-88,90-93,97,100-101,105,107,113-115
+scripts/install.js
+  s_d31c534662a7a4::t_3457a050fa6d67 342-347
+  s_d31c534662a7a4::t_787d0a54c8314d 11,16,49-51,55,208,296-297,304-305,318,332-340,350-352
+  s_d31c534662a7a4::t_0662b1800fb65e 52-53,300-303
+  s_d31c534662a7a4::t_be39cb07d640cb 308,320,324-328
+.gemini/commands/teach-me.toml
+  s_d31c534662a7a4::t_c9438e4687547a 1-7
+scripts/verify.js
+  s_d31c534662a7a4::t_709d41cc203030 11,13,152-166,180-186,220-228,244-253,262
+  s_d31c534662a7a4::t_183317648fdaf2 172-175,199-202
+skills/personal/teach-me/SKILL.md
+  s_d31c534662a7a4::t_c9438e4687547a 211
+scripts/lib/common.js
+  s_d31c534662a7a4::t_7620ddab3c4505 12,41,48-49,56-57,65,73,81,88-89,183-190,311-325,492,496,501
+  s_d31c534662a7a4::t_256658c2b8d21b 63,71,160
+.claude/commands/teach-me.md
+  s_d31c534662a7a4::t_c9438e4687547a 1-9
+commands/teach-me.toml
+  s_d31c534662a7a4::t_c9438e4687547a 1-7
+skills/README.md
+  s_d31c534662a7a4::t_fdf7c0fb48cf11 91
+skills/tcwith/wiki-fetcher/SKILL.md
+  s_d31c534662a7a4::t_fdf7c0fb48cf11 219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "fba04f37128e0320ffc390c6490671494c3d9994",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  },
+  "sessions": {
+    "s_d31c534662a7a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ef275-cc97-7c32-b650-221fad50d1a3",
+        "model": "gpt-5.5"
+      },
+      "human_author": "huazi <huazi@local>"
+    }
+  }
+}
