@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: 仅当用户通过 /brainstorm slash command 或明确写出"使用 $brainstorming"时使用。不要因为用户说"讨论、想法、方案、设计、头脑风暴、brainstorm"或提出开放式问题而自动触发。用于在开始实现前进行结构化脑暴:澄清目标、列出多种方案、比较权衡、形成推荐方案;用户确认整体设计后,可生成详细实现计划并按用户选择的执行方式开始执行。
+description: 仅当用户通过 /brainstorm slash command 或明确写出"brainstorming"，"brainstorm"时使用。不要因为用户说"讨论、想法、方案、设计、头脑风暴"或提出开放式问题而自动触发。用于在开始实现前进行结构化脑暴:澄清目标、列出多种方案、比较权衡、形成推荐方案;用户确认整体设计后,可生成详细实现计划并按用户选择的执行方式开始执行。
 ---
 
 # Brainstorming
