@@ -1,0 +1,16 @@
+skills/productivity/brainstorming/SKILL.md
+  h_d8c66562a39f32 1-162
+skills/productivity/brainstorming/spec-document-reviewer-prompt.md
+  h_d8c66562a39f32 1-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "8643428da43337e3db3ec1cec7a741b19c68285b",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  }
+}
