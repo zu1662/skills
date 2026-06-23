@@ -3,7 +3,6 @@ name: teach-me
 description: 在当前工作区内教用户一项新技能或新概念。当用户说"教我XX"、"我想学XX"、"帮我入门XX"、"制定XX学习计划"时,使用本技能。
 argument-hint: "你想学什么主题?"
 disable-model-invocation: true
-command: true
 ---
 
 # 教我(Teach Me)

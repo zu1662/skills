@@ -61,7 +61,7 @@ EOF
 
 # 3. 安装(创建软链到各工具)
 cd ../..  # 回到仓库根
-./scripts/install.sh
+node scripts/install.js
 ```
 
 ## 命名规范
