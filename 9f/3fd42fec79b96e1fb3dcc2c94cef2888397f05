@@ -1,0 +1,14 @@
+skills/tcwith/bug-hunt/SKILL.md
+  h_d8c66562a39f32 1-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "9f3fd42fec79b96e1fb3dcc2c94cef2888397f05",
+  "prompts": {},
+  "humans": {
+    "h_d8c66562a39f32": {
+      "author": "huazi <huazi@local>"
+    }
+  }
+}
