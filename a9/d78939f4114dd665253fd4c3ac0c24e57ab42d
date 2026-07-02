@@ -1,0 +1,27 @@
+skills/README.md
+  s_9f05c6b06a0830::t_fdda070edbe999 91
+README.md
+  s_9f05c6b06a0830::t_4620fe6f76146d 3,8
+  s_9f05c6b06a0830::t_fdda070edbe999 53
+  s_9f05c6b06a0830::t_29a3e42b9ae1e8 78,82-85,92,97,99,106,115
+scripts/install.js
+  s_9f05c6b06a0830::t_fdda070edbe999 51,308-310
+scripts/lib/common.js
+  s_9f05c6b06a0830::t_ee63b2f96da881 48,431-442,475,571
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a9d78939f4114dd665253fd4c3ac0c24e57ab42d",
+  "prompts": {},
+  "sessions": {
+    "s_9f05c6b06a0830": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f20ba-be0f-7343-867c-577e8de087ca",
+        "model": "gpt-5.5"
+      },
+      "human_author": "huazi <huazi@local>"
+    }
+  }
+}
