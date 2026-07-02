@@ -1,11 +1,11 @@
 # my-skills
 
-个人 Agent Skills 仓库,参考 [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) 的多工具支持方式,把通用业务 skill 放在 `skills/`,把各 AI 工具的特殊配置放在各自目录(`.claude/`、`.opencode/` 等),再通过软链同步到 Claude Code / OpenCode / GitHub Copilot / Codex 这四种工具。
+个人 Agent Skills 仓库,参考 [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) 的多工具支持方式,把通用业务 skill 放在 `skills/`,把 slash command 源放在 `.claude/commands/`,再同步到 Claude Code / OpenCode / GitHub Copilot / Codex 这四种工具。
 
 ## 设计目标
 
 - **业务单一真理源**:只涉及业务流程的 skill 源文件放在 `skills/` 下
-- **工具配置隔离**:slash command、工具专属 frontmatter、TOML prompt 等维护在各工具自己的目录里
+- **工具配置隔离**:slash command 统一维护在 `.claude/commands/`,OpenCode command 由安装脚本生成到其原生配置
 - **多工具通用**:遵循 [Agent Skills](https://agentskills.io) 开源标准,按各工具原生发现目录安装
 - **零冲突**:install/uninstall 脚本自动检测已安装工具,交互式选择目标
 - **安全可逆**:所有操作通过软链实现,可一键卸载,不会污染目标目录
@@ -31,7 +31,6 @@ node scripts/uninstall.js
 # 日常使用
 node scripts/sync.js        # 同步变更(install 的语义别名)
 node scripts/new-skill.js   # 交互式创建新 skill 脚手架
-npm test                    # 运行单元测试
 ```
 
 ## 目录结构
@@ -40,7 +39,6 @@ npm test                    # 运行单元测试
 my-skills/
 ├── README.md                       本文件
 ├── .gitignore                      排除运行时产物
-├── package.json                    npm 脚本入口(test/sync/verify 等)
 ├── scripts/
 │   ├── lib/
 │   │   ├── common.js               跨平台公共函数(工具检测/软链校验/输入解析)
@@ -52,9 +50,7 @@ my-skills/
 │   ├── verify.js                   验证可达性 + 一致性自检
 │   └── new-skill.js                交互式新建 skill 脚手架
 ├── .claude/
-│   └── commands/                   Claude Code markdown slash commands
-├── .opencode/
-│   └── commands/                   OpenCode TOML slash commands
+│   └── commands/                   slash command 单一来源(Claude 软链,OpenCode 生成配置)
 └── skills/                         ⭐ 业务 skill 单一真理源
     └── <category>/                 按类型组织,如 dev/、productivity/、research/
         └── <skill-name>/           skill 名称必须全局唯一
@@ -79,32 +75,35 @@ my-skills/
 3. 重新执行 `node scripts/install.js` 创建软链
 4. 执行 `node scripts/verify.js` 确认所有工具可识别
 
-> **frontmatter 兼容说明**:`SKILL.md` 尽量只保留通用字段(`name`、`description`)。Claude Code 的 `allowed-tools`、`disable-model-invocation`、`argument-hint` 等专属字段应写入 `.claude/commands/<name>.md`;OpenCode 的 slash command prompt 应写入对应 TOML。
+> **frontmatter 兼容说明**:`SKILL.md` 尽量只保留通用字段(`name`、`description`)。Claude Code 的 `allowed-tools`、`disable-model-invocation`、`argument-hint` 等专属字段应写入 `.claude/commands/<name>.md`;OpenCode command 会从同一份 Markdown command 的 description 和正文生成。
 
 ## 工具专属 command 配置
 
-`skills/` 下只维护业务 skill。任何只服务某个工具的入口配置,都放在对应工具目录里,install.js 会按目录原样软链到目标 commands 目录。
+`skills/` 下只维护业务 skill。Slash command 以 `.claude/commands/<name>.md` 作为仓库内单一来源:
+
+- Claude Code: `install.js` 将 Markdown command 软链到 `~/.claude/commands/<name>.md`
+- OpenCode: `install.js` 读取同一份 Markdown 的 `description` 和正文,写入 `~/.config/opencode/opencode.json` 的 `command` 配置,并用 `~/.config/opencode/.my-skills-commands.json` 记录本项目管理的条目
 
 以 `teach-me` 为例:
 
 | 源文件 | 安装目标 | 格式 |
 |---|---|---|
 | `.claude/commands/teach-me.md` | `~/.claude/commands/teach-me.md` | Claude Code markdown command |
-| `.opencode/commands/teach-me.toml` | `~/.config/opencode/commands/teach-me.toml` | OpenCode TOML command |
+| `.claude/commands/teach-me.md` | `~/.config/opencode/opencode.json` | OpenCode command 配置 |
 
 新增 command 时:
 
 1. 保持 `skills/<category>/<skill-name>/SKILL.md` 为通用业务说明
-2. 在需要支持 slash command 的工具目录新增原生格式文件
+2. 如需支持 slash command,新增 `.claude/commands/<name>.md`
 3. 运行 `node scripts/install.js` 安装软链
-4. 运行 `node scripts/verify.js` 检查 command 源文件是否已安装
+4. 运行 `node scripts/verify.js` 检查 command 是否已安装或写入配置
 
 ## 软链目标说明
 
 | 工具 | skills/rules 软链目标 | commands 软链目标 |
 |---|---|---|
 | Claude Code | `~/.claude/skills/<name>` | `~/.claude/commands/<name>.md` |
-| OpenCode(native) | `~/.config/opencode/skills/<name>` | `~/.config/opencode/commands/<name>.toml` |
+| OpenCode(native) | `~/.config/opencode/skills/<name>` | 写入 `~/.config/opencode/opencode.json` |
 | GitHub Copilot(project) | 不自动派生 | — |
 | Codex | `~/.codex/skills/<name>` | — |
 
@@ -113,7 +112,7 @@ my-skills/
 | 工具 | skills/rules 路径 | commands 路径 | 支持方式 | 备注 |
 |---|---|---|---|---|
 | Claude Code | `~/.claude/skills/<name>/SKILL.md` | `~/.claude/commands/<name>.md` | 原生 skills + markdown commands | command 文件维护在 `.claude/commands/` |
-| OpenCode | `~/.config/opencode/skills/<name>/SKILL.md` | `~/.config/opencode/commands/<name>.toml` | 原生/兼容 skills + TOML commands | command 文件维护在 `.opencode/commands/` |
+| OpenCode | `~/.config/opencode/skills/<name>/SKILL.md` | `~/.config/opencode/opencode.json` | 原生/兼容 skills + JSON command 配置 | command 内容从 `.claude/commands/` 生成 |
 | GitHub Copilot | 不自动安装 (autoInstall: false) | — | 项目级显式配置 | 检测到但仍跳过;手工维护 `.github/copilot-instructions.md`、`.github/agents/*.agent.md` 等 |
 | Codex | `~/.codex/skills/<name>/SKILL.md` | — | skills 目录 | 保持极简 frontmatter |
 

@@ -45,7 +45,7 @@ const toolsRegistry = [
     cli: "opencode",
     skillsDir: path.join(homeDir, ".config", "opencode", "skills"),
     commandsDir: path.join(homeDir, ".config", "opencode", "commands"),
-    commandSourceDir: path.join(repoRoot, ".opencode", "commands"),
+    commandSourceDir: path.join(repoRoot, ".claude", "commands"),
   },
   {
     id: "copilot",
@@ -428,6 +428,18 @@ function isLegacyManagedOpencodeCommand(commandConfig, sourceName) {
   return Boolean(commandConfig && commandConfig["x-my-skills-source"] === sourceName);
 }
 
+function isManagedOpencodeCommand(commandConfig, registrySourceName, definition) {
+  if (registrySourceName === definition.sourceName) {
+    return true;
+  }
+
+  if (registrySourceName && commandNameFromFile(registrySourceName) === definition.name) {
+    return true;
+  }
+
+  return isLegacyManagedOpencodeCommand(commandConfig, definition.sourceName);
+}
+
 function removeInternalCommandFields(commandConfig) {
   if (!commandConfig || typeof commandConfig !== "object") {
     return commandConfig;
@@ -460,7 +472,7 @@ function installOpencodeCommands(commandFiles, options = {}) {
     }
 
     const existing = nextCommands[definition.name];
-    const isManaged = registry[definition.name] === definition.sourceName || isLegacyManagedOpencodeCommand(existing, definition.sourceName);
+    const isManaged = isManagedOpencodeCommand(existing, registry[definition.name], definition);
     if (existing && !isManaged) {
       results.push({
         name: definition.name,
@@ -556,7 +568,7 @@ function uninstallOpencodeCommands(commandFiles, options = {}) {
   for (const commandFile of commandFiles) {
     const definition = readCommandDefinition(commandFile);
     const existing = nextCommands[definition.name];
-    const isManaged = registry[definition.name] === definition.sourceName || isLegacyManagedOpencodeCommand(existing, definition.sourceName);
+    const isManaged = isManagedOpencodeCommand(existing, registry[definition.name], definition);
     if (!isManaged) {
       results.push({
         name: definition.name,

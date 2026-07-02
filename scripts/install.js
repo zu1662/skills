@@ -48,7 +48,7 @@ function printUsage() {
 
 工具 id:
   claude     Claude Code(~/.claude/skills/, ~/.claude/commands/)
-  opencode   OpenCode(~/.config/opencode/skills/, ~/.config/opencode/commands/)
+  opencode   OpenCode(~/.config/opencode/skills/, ~/.config/opencode/opencode.json)
   copilot    GitHub Copilot(不自动安装;请维护 .github/ 下的显式配置)
   codex      Codex(~/.codex/skills/)
 
@@ -305,7 +305,9 @@ async function main() {
       warn("  未配置自动 skills 安装目标,跳过");
       continue;
     }
-    if (commandsDir && commandSourceDir) {
+    if (toolId === "opencode" && commandSourceDir) {
+      info(`  commands 源: ${commandSourceDir}/ -> ${path.join(path.dirname(targetDir), "opencode.json")} (${commandFiles.length} 个)`);
+    } else if (commandsDir && commandSourceDir) {
       info(`  commands 源: ${commandSourceDir}/ -> ${commandsDir}/ (${commandFiles.length} 个)`);
     }
 
